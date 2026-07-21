@@ -23,40 +23,38 @@
         to predefined values. HardeningKitty reads settings from the registry and uses other modules
         to read configurations outside the registry.
 
-
     .PARAMETER FileFindingList
 
         Path to a finding list in CSV format. HardeningKitty has one list each for machine and user settings.
-
 
     .PARAMETER Mode
 
         The mode Config only retrieves the settings, while the mode Audit performs an assessment of the settings.
         The mode HailMary hardens the system according to recommendations of the HardeningKitty list.
 
+    .PARAMETER Source
+
+        Defines whether the system is configured using Group Policy (GPO) or Microsoft Intune. The information
+        gathering process differs between these sources.
 
     .PARAMETER EmojiSupport
 
         The use of emoji is activated. The terminal should support this accordingly. Windows Terminal
         offers full support.
 
-
     .PARAMETER Log
 
         The logging function is activated. The script output is additionally logged in a file. The file
         name is assigned by HardeningKitty itself and the file is stored in the same directory as the script.
 
-
     .PARAMETER LogFile
 
         The name and location of the log file can be defined by the user.
-
 
     .PARAMETER Report
 
         The retrieved settings and their assessment result are stored in CSV format in a machine-readable format.
         The file name is assigned by HardeningKitty itself and the file is stored in the same directory as the script.
-
 
     .PARAMETER ReportFile
 
@@ -91,6 +89,15 @@
         The Filter parameter can be used to filter the hardening list. For this purpose the PowerShell ScriptBlock syntax must be used, for example { $_.ID -eq 4505 }.
         The following elements are useful for filtering: ID, Category, Name, Method, and Severity.
 
+    .PARAMETER GPOname
+
+        The GPOname parameter defines the name of the GPO policy.
+
+    .PARAMETER AllowCustomList
+
+        Use a finding list that is not verified against the maintainer signature (a custom or modified list) in a write mode (HailMary, GPO).
+        Running your own list is your own risk.
+
     .EXAMPLE
         Invoke-HardeningKitty -Mode Audit -Log -Report
 
@@ -123,6 +130,11 @@
         [ValidateSet("Audit", "Config", "HailMary", "GPO")]
         [String]
         $Mode = "Audit",
+
+        # Choose source, Group Policy or Microsoft Intune
+        [ValidateSet("GPO", "Intune")]
+        [String]
+        $Source = "GPO",
 
         # Activate emoji support for Windows Terminal
         [Switch]
@@ -174,14 +186,16 @@
 
          # Define name of the GPO name
         [String]
-        $GPOname
+        $GPOname,
+
+        # Use a finding list that is not verified against the maintainer signature
+        [Switch]
+        $AllowCustomList
     )
 
     Function Write-ProtocolEntry {
-
         <#
         .SYNOPSIS
-
             Output of an event with timestamp and different formatting
             depending on the level. If the Log parameter is set, the
             output is also stored in a file.
@@ -189,7 +203,6 @@
 
         [CmdletBinding()]
         Param (
-
             [String]
             $Text,
 
@@ -215,17 +228,14 @@
     }
 
     Function Add-MessageToFile {
-
         <#
         .SYNOPSIS
-
             Write message to a file, this function can be used for logs,
             reports, backups and more.
         #>
 
         [CmdletBinding()]
         Param (
-
             [String]
             $Text,
 
@@ -243,10 +253,8 @@
     }
 
     Function Write-ResultEntry {
-
         <#
         .SYNOPSIS
-
             Output of the assessment result with different formatting
             depending on the severity level. If emoji support is enabled,
             a suitable symbol is used for the severity rating.
@@ -287,14 +295,11 @@
     }
 
     Function Get-IniContent ($filePath) {
-
         <#
         .SYNOPSIS
-
             Read a .ini file into a tree of hashtables
 
         .NOTES
-
             Original source see https://devblogs.microsoft.com/scripting/use-powershell-to-work-with-any-ini-file/
         #>
 
@@ -324,15 +329,12 @@
     }
 
     Function Out-IniFile($InputObject, $FilePath, $Encoding) {
-
         <#
-            .SYNOPSIS
+        .SYNOPSIS
+            Write a hashtable out to a .ini file
 
-                Write a hashtable out to a .ini file
-
-            .NOTES
-
-                Original source see https://devblogs.microsoft.com/scripting/use-powershell-to-work-with-any-ini-file/
+        .NOTES
+            Original source see https://devblogs.microsoft.com/scripting/use-powershell-to-work-with-any-ini-file/
         #>
 
         $outFile = New-Item -Force -ItemType file -Path $Filepath
@@ -357,11 +359,9 @@
     }
 
     Function Get-HashtableValueDeep {
-
         <#
-            .SYNOPSIS
-
-                Get a value from a tree of hashtables
+        .SYNOPSIS
+            Get a value from a tree of hashtables
         #>
 
         [CmdletBinding()]
@@ -394,16 +394,13 @@
     }
 
     Function Set-HashtableValueDeep {
-
         <#
-            .SYNOPSIS
-
-                Set a value in a tree of hashtables, using recursion.
+        .SYNOPSIS
+            Set a value in a tree of hashtables, using recursion.
         #>
 
         [CmdletBinding()]
         Param (
-
             [Hashtable]
             $Table,
 
@@ -432,11 +429,9 @@
     }
 
     Function Get-SidFromAccount {
-
         <#
-            .SYNOPSIS
-
-                Translate the account name (user or group) into the Security Identifier (SID)
+        .SYNOPSIS
+            Translate the account name (user or group) into the Security Identifier (SID)
         #>
 
         [CmdletBinding()]
@@ -461,11 +456,9 @@
     }
 
     Function Get-AccountFromSid {
-
         <#
-            .SYNOPSIS
-
-                Translate the Security Identifier (SID) into the account name (user or group)
+        .SYNOPSIS
+            Translate the Security Identifier (SID) into the account name (user or group)
         #>
 
         [CmdletBinding()]
@@ -490,13 +483,11 @@
     }
 
     Function Translate-SidFromWellkownAccount {
-
         <#
-            .SYNOPSIS
-
-                Translate the well-known account name (user or group) into the Security Identifier (SID)
-                No attempt is made to get a Domain SID to identify groups such as Domain Admins,
-                as the possibility for false positives is too great. In this case the account name is returned.
+        .SYNOPSIS
+            Translate the well-known account name (user or group) into the Security Identifier (SID)
+            No attempt is made to get a Domain SID to identify groups such as Domain Admins,
+            as the possibility for false positives is too great. In this case the account name is returned.
         #>
 
         [CmdletBinding()]
@@ -512,7 +503,6 @@
         $LocalGuestSid = $ComputerSid + "-501"
 
         Switch ($AccountName) {
-
             "Administrator" { $AccountSid = $LocalAdminSid; Break }
             "Guest" { $AccountSid = $LocalGuestSid; Break }
             "BUILTIN\Account Operators" { $AccountSid = "S-1-5-32-548"; Break }
@@ -537,14 +527,15 @@
             "NT AUTHORITY\SYSTEM" { $AccountSid = "S-1-5-18"; Break }
             "NT SERVICE\WdiServiceHost" { $AccountSid = "S-1-5-80-3139157870-2983391045-3678747466-658725712-1809340420"; Break }
             "NT VIRTUAL MACHINE\Virtual Machines" { $AccountSid = "S-1-5-83-0"; Break }
-            "Window Manager\Window Manager Group" { $AccountSid = "S-1-5-90-0"; Break }
+            "RESTRICTED SERVICES\PrintSpoolerService" { $AccountSid = "S-1-5-99-216390572-1995538116-3857911515-2404958512-2623887229"; Break }
+            "Window Manager\Window Manager Group" { $AccountSid = "S-1-5-90-0"; Break }            
             Default { $AccountSid = $AccountName }
         }
 
         Return $AccountSid
     }
 
-    function Write-NotAdminError {
+    Function Write-NotAdminError {
         [CmdletBinding()]
         param (
             [String]
@@ -560,7 +551,7 @@
         Write-ProtocolEntry -Text $Message -LogLevel "Error"
     }
 
-    function Write-BinaryError {
+    Function Write-BinaryError {
         [CmdletBinding()]
         param (
             [String]
@@ -577,7 +568,168 @@
         Write-ProtocolEntry -Text $Message -LogLevel "Error"
     }
 
-    function ConvertToInt {
+    Function New-HardeningKittyTempDirectory {
+        <#
+        .SYNOPSIS
+            Create a private working directory for temporary files.
+
+        .DESCRIPTION
+            This function creates a dedicated directory with a random name and an ACL restricted to
+            the current user (inheritance disabled), so temporary files cannot be pre-created,
+            tampered with or read by other users. This protects the auditpol backup and the secedit exports
+            which contain security configuration information.
+        #>
+
+        $TempPath = [System.IO.Path]::GetTempPath()
+        Do {
+            $DirectoryPath = Join-Path -Path $TempPath -ChildPath ("HardeningKitty_" + [System.IO.Path]::GetRandomFileName())
+        } Until (-Not (Test-Path -LiteralPath $DirectoryPath))
+
+        $Directory = New-Item -Path $DirectoryPath -ItemType Directory -ErrorAction Stop
+
+        # Restrict access to the current user and remove inherited permissions
+        $CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+        $Acl = Get-Acl -Path $Directory.FullName
+        $Acl.SetAccessRuleProtection($true, $false)
+        $AccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+            $CurrentUser,
+            [System.Security.AccessControl.FileSystemRights]::FullControl,
+            ([System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit),
+            [System.Security.AccessControl.PropagationFlags]::None,
+            [System.Security.AccessControl.AccessControlType]::Allow
+        )
+        $Acl.AddAccessRule($AccessRule)
+        Set-Acl -Path $Directory.FullName -AclObject $Acl
+
+        Return $Directory.FullName
+    }
+
+    Function New-HardeningKittyTempFile {
+        <#
+        .SYNOPSIS
+            Return a path to a uniquely named temporary file inside the private
+            HardeningKitty working directory.
+
+        .DESCRIPTION
+            The random file name comes from a cryptographically strong source. With
+            -CreateFile an empty file is created, mirroring the GetTempFileName() behaviour.
+            Without it only a path is returned, which is required by auditpol.exe
+            as it refuses to back up into an existing file.
+        #>
+
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true)]
+            [String]
+            $Directory,
+            [Switch]
+            $CreateFile
+        )
+        Do {
+            $FilePath = Join-Path -Path $Directory -ChildPath ([System.IO.Path]::GetRandomFileName())
+        } Until (-Not (Test-Path -LiteralPath $FilePath))
+        If ($CreateFile) {
+            New-Item -Path $FilePath -ItemType File -ErrorAction Stop | Out-Null
+        }
+        Return $FilePath
+    }
+
+    Function Confirm-FindingListIntegrity {
+        <#
+        .SYNOPSIS
+            Verify a finding list against the signed official manifest.
+
+        .DESCRIPTION
+            Official finding lists are attested by lists\hardeningkitty_lists_manifest.psd1, which
+            maps each official list file name to its SHA-256 hash and is signed with a detached
+            PKCS#7 signature (hardeningkitty_lists_manifest.psd1.p7s) by the maintainer certificate.
+
+            A list is "verified" when the detached signature is intact, the signer thumbprint matches
+            the pinned thumbprint, and the list SHA-256 matches the manifest entry for its name.
+
+            The signature is checked with SignedCms.CheckSignature($true), which validates signature
+            integrity only and deliberately ignores the certificate chain and validity period. The
+            trust anchor is the pinned thumbprint, not a public CA, so a self-signed certificate is
+            sufficient and no timestamp is required.
+
+            This function never throws; it always returns a status object with the properties
+            Verified (bool), Reason (string) and Hash (string, SHA-256 of the list).
+        #>
+
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true)]
+            [String]
+            $ListPath,
+            [Parameter(Mandatory = $true)]
+            [String]
+            $ManifestPath,
+            [Parameter(Mandatory = $true)]
+            [String]
+            $SignaturePath,
+            [String]
+            $PinnedThumbprint
+        )
+
+        $Hash = ""
+
+        try {
+
+            # Hash of the list under test (reported even when verification fails)
+            If (Test-Path -LiteralPath $ListPath) {
+                $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $ListPath).Hash
+            }
+
+            # Trust anchor must be configured
+            If ([String]::IsNullOrWhiteSpace($PinnedThumbprint) -or $PinnedThumbprint -eq "REPLACE_WITH_MAINTAINER_CERT_THUMBPRINT") {
+                Return [pscustomobject] @{ Verified = $false; Reason = "signing thumbprint not configured"; Hash = $Hash }
+            }
+
+            # Manifest and detached signature must be present
+            If (-Not (Test-Path -LiteralPath $ManifestPath) -or -Not (Test-Path -LiteralPath $SignaturePath)) {
+                Return [pscustomobject] @{ Verified = $false; Reason = "signed manifest not found"; Hash = $Hash }
+            }
+
+            # The PKCS#7/CMS types (SignedCms, ContentInfo) live in the System.Security assembly,
+            # which is not loaded by default on Windows PowerShell 5.1 (already present on PS 7).
+            If (-not ([System.Management.Automation.PSTypeName]'System.Security.Cryptography.Pkcs.SignedCms').Type) {
+                Add-Type -AssemblyName System.Security
+            }
+
+            # Verify the detached PKCS#7 signature over the manifest bytes (integrity only)
+            $ManifestBytes = [System.IO.File]::ReadAllBytes($ManifestPath)
+            $SignatureBytes = [System.IO.File]::ReadAllBytes($SignaturePath)
+            $ContentInfo = New-Object System.Security.Cryptography.Pkcs.ContentInfo(, $ManifestBytes)
+            $SignedCms = New-Object System.Security.Cryptography.Pkcs.SignedCms($ContentInfo, $true)
+            $SignedCms.Decode($SignatureBytes)
+            $SignedCms.CheckSignature($true)
+
+            # Signer must be the pinned maintainer certificate
+            $SignerThumbprint = $SignedCms.SignerInfos[0].Certificate.Thumbprint
+            If ($SignerThumbprint -ne $PinnedThumbprint) {
+                Return [pscustomobject] @{ Verified = $false; Reason = "manifest signed by an untrusted certificate"; Hash = $Hash }
+            }
+
+            # The manifest content is trustworthy only now that its signature is verified
+            $Manifest = Import-PowerShellDataFile -Path $ManifestPath
+            $ListName = Split-Path -Path $ListPath -Leaf
+            $ExpectedHash = $Manifest.Lists[$ListName]
+
+            If ([String]::IsNullOrEmpty($ExpectedHash)) {
+                Return [pscustomobject] @{ Verified = $false; Reason = "not an official list"; Hash = $Hash }
+            }
+            If ($ExpectedHash -ne $Hash) {
+                Return [pscustomobject] @{ Verified = $false; Reason = "list content does not match the signed manifest"; Hash = $Hash }
+            }
+
+            Return [pscustomobject] @{ Verified = $true; Reason = "official"; Hash = $Hash }
+
+        } catch {
+            Return [pscustomobject] @{ Verified = $false; Reason = "verification error: $($_.Exception.Message)"; Hash = $Hash }
+        }
+    }
+
+    Function ConvertToInt {
         [CmdletBinding()]
         Param (
 
@@ -601,6 +753,71 @@
         throw "Cannot convert string '$string' to an integer."
     }
 
+    Function Get-IntuneResult {
+        # Check if the finding list has an Intune setting
+        If ([string]::IsNullOrEmpty($Finding.RegistryPathIntune)) {
+            $Result = "NotSupported"
+        } Else {
+            # Intune user policy settings contain a SID value, we need to replace it
+            # We get the value from the registry, as the SID must not match the current user's SID
+            If ([string] $Finding.RegistryPathIntune.contains("{SID}") -or [string] $Finding.RegistryPathDCP.contains("{SID}")) {
+                $FindingUserSIDPath = Get-ChildItem -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\current\" | Select-String -Pattern "S-1"
+                $FindingUserSID = $FindingUserSIDPath.ToString().Trim().Split("\")
+                # Replace SID in Intune path
+                If ([string] $Finding.RegistryPathIntune.contains("{SID}")){
+                    $FindingRegistryPathIntuneUser = $($Finding.RegistryPathIntune).Replace("{SID}",$FindingUserSID[5])
+                    $FindingRegistryPathIntune = $FindingRegistryPathIntuneUser
+                }
+                # Replace SID in DCP path
+                If ([string] $Finding.RegistryPathDCP.contains("{SID}")){
+                    $FindingRegistryPathDCPUser = $($Finding.RegistryPathDCP).Replace("{SID}",$FindingUserSID[5])
+                    $FindingRegistryPathDCP = $FindingRegistryPathDCPUser
+                }
+            } Else {
+                $FindingRegistryPathIntune = $Finding.RegistryPathIntune
+                $FindingRegistryPathDCP = $Finding.RegistryPathDCP
+            }
+            # Check if HardeningKitty needs to get the WinningProvider
+            If ([string]::IsNullOrEmpty($FindingRegistryPathDCP)) {
+                # Get result directly
+                If (Test-Path -Path $FindingRegistryPathIntune) {
+                    try {
+                        $Result = Get-ItemPropertyValue -Path $FindingRegistryPathIntune -Name $Finding.RegistryItemIntune
+                    } catch {
+                        $Result = "NotConfigured"
+                    }
+                } Else {
+                    $Result = "PathNotExists"
+                }
+            } Else {
+                # Check if policy enabled
+                If (Test-Path -Path $FindingRegistryPathDCP) {
+                    try {
+                        # Get the WinningProvider
+                        $FindingWinningProvider = $Finding.RegistryItemIntune + "_WinningProvider"
+                        $WinningProvider = Get-ItemPropertyValue -Path $FindingRegistryPathDCP -Name $FindingWinningProvider
+                        # Use the WinningProvider and get the result
+                        $FindingRegistryPathIntune = $($FindingRegistryPathIntune).Replace("{GUID}",$WinningProvider)
+                        If (Test-Path -Path $FindingRegistryPathIntune) {
+                            try {
+                                $Result = Get-ItemPropertyValue -Path $FindingRegistryPathIntune -Name $Finding.RegistryItemIntune
+                            } catch {
+                                $Result = "NotConfigured"
+                            }
+                        } Else {
+                            $Result = "WinningProviderNotExists"
+                        }
+                    } catch {
+                        $Result = "NotConfigured"
+                    }
+                } Else {
+                    $Result = "NotConfigured"
+                }
+            }
+        }
+        return $Result
+    }
+
     #
     # Binary Locations
     #
@@ -612,7 +829,13 @@
     #
     # Start Main
     #
-    $HardeningKittyVersion = "0.9.3-1726808773"
+    $HardeningKittyVersion = "0.9.4"
+
+    #
+    # Finding list integrity
+    #
+    $HardeningKittyListSigningThumbprint = "E962C15FED3A489616A6A048B492983679D6F643"
+    $HardeningKittyListManifestName = "hardeningkitty_lists_manifest.psd1"
 
     #
     # Log, report and backup file
@@ -778,6 +1001,16 @@
     }
 
     #
+    # Intune Warning
+    #
+    If ($Source -eq "Intune") {
+        Write-Output "`n"
+        Write-ProtocolEntry -Text "Intune warning" -LogLevel "Info"
+        $Message = "Hello friend, welcome to an adventure. Intune support is still in development and HardeningKitty has a lot of work to do to be able to query and evaluate Intune settings. Since you're already here, please help! Please maintain the finding lists and share information about Intune registry paths and values via discussions or issues. Since Intune support is still under development, do not expect a comprehensive review, the audit mode is not usable until further notice."
+        Write-ProtocolEntry -Text $Message -LogLevel "Warning"
+    }
+
+    #
     # User information
     #
     If (-not($SkipUserInformation)) {
@@ -792,6 +1025,12 @@
     } Else {
         $IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
     }
+
+    #
+    # Private working directory
+    # The auditpol backup and the secedit exports are written here.
+    #
+    $HardeningKittyTempDir = New-HardeningKittyTempDirectory
 
     #
     # Start Config/Audit mode
@@ -816,6 +1055,19 @@
         }
 
         $FindingList = Import-Csv -Path $FileFindingList -Delimiter ","
+
+        # Verify the finding list against the signed official manifest. In read modes (Audit, Config)
+        # this is informational only - nothing is applied to the system.
+        $ListStatus = Confirm-FindingListIntegrity -ListPath $FileFindingList `
+            -ManifestPath (Join-Path -Path $PSScriptRoot -ChildPath "lists\$HardeningKittyListManifestName") `
+            -SignaturePath (Join-Path -Path $PSScriptRoot -ChildPath "lists\$HardeningKittyListManifestName.p7s") `
+            -PinnedThumbprint $HardeningKittyListSigningThumbprint
+        If ($ListStatus.Verified) {
+            Write-ProtocolEntry -Text "Finding list verified as official (signature valid). SHA-256: $($ListStatus.Hash)" -LogLevel "Success"
+        } Else {
+            Write-ProtocolEntry -Text "Finding list is custom / unverified ($($ListStatus.Reason)). SHA-256: $($ListStatus.Hash)" -LogLevel "Warning"
+        }
+
         If ($Filter) {
             $FindingList = $FindingList | Where-Object -FilterScript $Filter
             If ($FindingList.Length -eq 0) {
@@ -832,6 +1084,7 @@
             # Reset
             #
             $Result = ""
+            $ResultDefaultValue = $false
 
             #
             # Category
@@ -851,35 +1104,40 @@
             #
             If ($Finding.Method -eq 'Registry') {
 
-                If (Test-Path -Path $Finding.RegistryPath) {
-
-                    try {
-                        $Result = Get-ItemPropertyValue -Path $Finding.RegistryPath -Name $Finding.RegistryItem
-                        # Join the result with ";" character if result is an array
-                        if ($Result -is [system.array] -and ($Finding.RegistryItem -eq "Machine" -Or $Finding.RegistryItem -eq "EccCurves" -Or $Finding.RegistryItem -eq "NullSessionPipes" -Or $Finding.RegistryItem -eq "NullSessionShares")){
-                            $Result = $Result -join ";"
+                If ($Source -eq 'GPO') {
+                    If (Test-Path -Path $Finding.RegistryPath) {
+                        try {
+                            $Result = Get-ItemPropertyValue -Path $Finding.RegistryPath -Name $Finding.RegistryItem
+                            # Join the result with ";" character if result is an array
+                            if ($Result -is [system.array] -and ($Finding.RegistryItem -eq "Machine" -Or $Finding.RegistryItem -eq "EccCurves" -Or $Finding.RegistryItem -eq "NullSessionPipes" -Or $Finding.RegistryItem -eq "NullSessionShares")){
+                                $Result = $Result -join ";"
+                            }
+                        } catch {
+                            If ($Backup) {
+                                # If an error occurs and the backup mode is enabled, we consider that this policy does not exist
+                                # and put "-NODATA-" as result to identify it as non-existing policy
+                                $Result = "-NODATA-"
+                            } Else {
+                                $Result = $Finding.DefaultValue
+                                $ResultDefaultValue = $true
+                            }
                         }
-                    } catch {
+                    } Else {
                         If ($Backup) {
-                            # If an error occurs and the backup mode is enabled, we consider that this policy does not exist
-                            # and put "-NODATA-" as result to identify it as non-existing policy
+                            # If this policy does not exist and the backup mode is enabled, we
+                            # put "-NODATA-" as result to identify it as non-existing policy
                             $Result = "-NODATA-"
                         } Else {
                             $Result = $Finding.DefaultValue
+                            $ResultDefaultValue = $true
+                            # Multiline Registry Keys need a semicolon instead of a space
+                            If ($Finding.RegistryItem -eq "Machine") {
+                                $Result = $Result.Replace(";", " ")
+                            }
                         }
                     }
-                } Else {
-                    If ($Backup) {
-                        # If this policy does not exist and the backup mode is enabled, we
-                        # put "-NODATA-" as result to identify it as non-existing policy
-                        $Result = "-NODATA-"
-                    } Else {
-                        $Result = $Finding.DefaultValue
-                        # Multiline Registry Keys need a semicolon instead of a space
-                        If ($Finding.RegistryItem -eq "Machine") {
-                            $Result = $Result.Replace(";", " ")
-                        }
-                    }
+                } ElseIf ($Source -eq 'Intune') {
+                    $Result = Get-IntuneResult
                 }
             }
 
@@ -903,8 +1161,7 @@
                     Continue
                 }
 
-                $TempFileName = [System.IO.Path]::GetTempFileName()
-
+                $TempFileName = New-HardeningKittyTempFile -Directory $HardeningKittyTempDir -CreateFile
                 $Area = "";
 
                 Switch ($Finding.Category) {
@@ -934,28 +1191,34 @@
             #
             ElseIf ($Finding.Method -eq 'RegistryList') {
 
-                If (Test-Path -Path $Finding.RegistryPath) {
+                If ($Source -eq 'GPO') {
+                    If (Test-Path -Path $Finding.RegistryPath) {
 
-                    try {
-                        $ResultList = Get-ItemProperty -Path $Finding.RegistryPath
+                        try {
+                            $ResultList = Get-ItemProperty -Path $Finding.RegistryPath
 
-                        If ($ResultList | Where-Object { $_ -like "*" + $Finding.RegistryItem + "*" }) {
-                            $Result = $Finding.RegistryItem
-                        } Else {
-                            $Result = "-NODATA-"
+                            If ($ResultList | Where-Object { $_ -like "*" + $Finding.RegistryItem + "*" }) {
+                                $Result = $Finding.RegistryItem
+                            } Else {
+                                $Result = "-NODATA-"
+                            }
+
+                        } catch {
+                            $Result = $Finding.DefaultValue
+                            $ResultDefaultValue = $true
                         }
-
-                    } catch {
-                        $Result = $Finding.DefaultValue
-                    }
-                } Else {
-                    If ($Backup) {
-                        # If this policy does not exist and the backup mode is enabled, we
-                        # put "-NODATA-" as result to identify it as non-existing policy
-                        $Result = "-NODATA-"
                     } Else {
-                        $Result = $Finding.DefaultValue
+                        If ($Backup) {
+                            # If this policy does not exist and the backup mode is enabled, we
+                            # put "-NODATA-" as result to identify it as non-existing policy
+                            $Result = "-NODATA-"
+                        } Else {
+                            $Result = $Finding.DefaultValue
+                            $ResultDefaultValue = $true
+                        }
                     }
+                } ElseIf ($Source -eq 'Intune') {
+                    $Result = Get-IntuneResult
                 }
             }
 
@@ -983,8 +1246,9 @@
 
                     $SubCategory = $Finding.MethodArgument
 
-                    # auditpol.exe does not write a backup in an existing file, so we have to build a name instead of create one
-                    $TempFileName = [System.IO.Path]::GetTempPath() + "HardeningKitty_auditpol-" + $(Get-Date -Format yyyyMMdd-HHmmss) + ".csv"
+                    # auditpol.exe does not write a backup into an existing file, so a path is
+                    # generated without creating the file
+                    $TempFileName = New-HardeningKittyTempFile -Directory $HardeningKittyTempDir
                     &$BinaryAuditpol /backup /file:$TempFileName > $null
 
                     $ResultOutputLoad = Get-Content $TempFileName
@@ -1008,6 +1272,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1019,34 +1284,41 @@
             #
             ElseIf ($Finding.Method -eq 'accountpolicy') {
 
-                # Check if net binary is available, skip test if not
-                If (-Not (Test-Path $BinaryNet)) {
-                    Write-BinaryError -Binary $BinaryNet -FindingID $Finding.ID -FindingName $Finding.Name -FindingMethod $Finding.Method
-                    Continue
+                If ($Source -eq 'Intune') {
+                    $Result = Get-IntuneResult
                 }
 
-                try {
+                If ($Source -eq 'GPO' -or $Result -eq 'NotSupported') {
 
-                    $ResultOutput = &$BinaryNet accounts
-
-                    # "Parse" account policy
-                    Switch ($Finding.Name) {
-                        "Force user logoff how long after time expires" { $ResultOutput[0] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
-                        "Network security: Force logoff when logon hours expires" { $ResultOutput[0] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
-                        "Minimum password age" { $ResultOutput[1] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
-                        "Maximum password age" { $ResultOutput[2] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
-                        "Minimum password length" { $ResultOutput[3] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
-                        "Length of password history maintained" { $ResultOutput[4] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
-                        "Account lockout threshold" { $ResultOutput[5] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
-                        "Account lockout duration" { $ResultOutput[6] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
-                        "Reset account lockout counter" { $ResultOutput[7] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                    # Check if net binary is available, skip test if not
+                    If (-Not (Test-Path $BinaryNet)) {
+                        Write-BinaryError -Binary $BinaryNet -FindingID $Finding.ID -FindingName $Finding.Name -FindingMethod $Finding.Method
+                        Continue
                     }
 
-                } catch {
-                    $Result = $Finding.DefaultValue
+                    try {
+
+                        $ResultOutput = &$BinaryNet accounts
+
+                        # "Parse" account policy
+                        Switch ($Finding.Name) {
+                            "Force user logoff how long after time expires" { $ResultOutput[0] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                            "Network security: Force logoff when logon hours expires" { $ResultOutput[0] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                            "Minimum password age" { $ResultOutput[1] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                            "Maximum password age" { $ResultOutput[2] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                            "Minimum password length" { $ResultOutput[3] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                            "Length of password history maintained" { $ResultOutput[4] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                            "Account lockout threshold" { $ResultOutput[5] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                            "Account lockout duration" { $ResultOutput[6] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                            "Reset account lockout counter" { $ResultOutput[7] -match '([a-zA-Z:, /-]+)  ([a-z0-9, ]+)' | Out-Null; $Result = $Matches[2]; Break }
+                        }
+
+                    } catch {
+                        $Result = $Finding.DefaultValue
+                        $ResultDefaultValue = $true
+                    }
                 }
             }
-
             #
             # Get Local Account Information
             # The PowerShell function Get-LocalUser is used for this.
@@ -1070,10 +1342,12 @@
                         $Result = $ResultOutput.Name
                     } Else {
                         $Result = $Finding.DefaultValue
+                        $ResultDefaultValue = $true
                     }
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1102,12 +1376,14 @@
                 }
 
                 $Area = "USER_RIGHTS"
-                $TempFileName = [System.IO.Path]::GetTempFileName()
+                $TempFileName = New-HardeningKittyTempFile -Directory $HardeningKittyTempDir -CreateFile
 
                 try {
 
                     &$BinarySecedit /export /cfg $TempFileName /areas $Area | Out-Null
-                    $ResultOutputRaw = Get-Content -Encoding unicode $TempFileName | Select-String $Finding.MethodArgument
+                    # -SimpleMatch: MethodArgument comes from the finding list and must be treated
+                    # as literal text, not a regular expression
+                    $ResultOutputRaw = Get-Content -Encoding unicode $TempFileName | Select-String -SimpleMatch $Finding.MethodArgument
 
                     If ($null -eq $ResultOutputRaw) {
                         $Result = ""
@@ -1147,6 +1423,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1170,6 +1447,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1198,6 +1476,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1214,6 +1493,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1232,6 +1512,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1250,6 +1531,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1279,6 +1561,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1310,6 +1593,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1332,6 +1616,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1354,6 +1639,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1384,10 +1670,12 @@
                         $Result = $Matches[1]
                     } Else {
                         $Result = $Finding.DefaultValue
+                        $ResultDefaultValue = $true
                     }
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1404,6 +1692,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1416,10 +1705,19 @@
                 try {
 
                     $ResultOutput = Get-Service -Name $Finding.MethodArgument 2> $null
-                    $Result = $ResultOutput.StartType
-
+                    
+                    # Use only processes, not drivers
+                    # https://learn.microsoft.com/en-us/dotnet/api/system.serviceprocess.servicetype
+                    If ($ResultOutput.ServiceType.value__ -ge 16) {
+                        $Result = $ResultOutput.StartType
+                    } Else {
+                        $Result = $Finding.DefaultValue
+                        $ResultDefaultValue = $true
+                    }
+                    
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1436,6 +1734,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
             }
 
@@ -1484,46 +1783,181 @@
                 # Machine => Network access: Remotely accessible registry paths
                 # Hardened UNC Paths => Remove spaces in result and recommendation only if result is not null or empty
                 #
-                If ($Finding.Method -eq 'Registry' -and $Finding.RegistryItem -eq "Machine") {
-                    # $Finding.RecommendedValue = $Finding.RecommendedValue.Replace(";", " ")
-                } ElseIf ($Finding.Method -eq 'Registry' -and $Finding.RegistryPath -eq "HKLM:\Software\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths") {
-                    If (![string]::IsNullOrEmpty($Result)) {
-                        $Result = $Result.Replace(" ", "")
+                If ($Source -eq "GPO") {
+                    If ($Finding.Method -eq 'Registry' -and $Finding.RegistryItem -eq "Machine") {
+                        # $Finding.RecommendedValue = $Finding.RecommendedValue.Replace(";", " ")
+                    } ElseIf ($Finding.Method -eq 'Registry' -and $Finding.RegistryPath -eq "HKLM:\Software\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths") {
+                        If (![string]::IsNullOrEmpty($Result)) {
+                            $Result = $Result.Replace(" ", "")
+                        }
+                        $Finding.RecommendedValue = $Finding.RecommendedValue.Replace(" ", "")
                     }
-                    $Finding.RecommendedValue = $Finding.RecommendedValue.Replace(" ", "")
                 }
 
                 #
                 # Handling for registry keys with an "advanced" format
                 #
-                If ($Finding.Method -eq 'Registry' -and $Finding.RegistryItem -eq "ASRRules") {
 
-                    try {
-                        $ResultAsr = $Result.Split("|")
-                        ForEach ($AsrRow in $ResultAsr) {
-                            $AsrRule = $AsrRow.Split("=")
-                            If ($AsrRule[0] -eq $Finding.MethodArgument) {
-                                $Result = $AsrRule[1]
-                                Break
-                            } Else {
+                # Define list of registry items
+                $RegistryItemCollection = @("ConfigureRpcConnectionPolicy", "ConfigureRpcListenerPolicy", "CSE_Registry", "CSE_Security", "PointAndPrintRestrictions",
+                "SpecifyMaximumFileSizeApplicationLog", "SpecifyMaximumFileSizeSecurityLog", "SpecifyMaximumFileSizeSystemLog", "Channel_LogMaxSize_3" )
+
+                # Go through all the special cases that require additional handling
+                If ($Source -eq "Intune" -and $Finding.Method -eq 'Registry' -and $Finding.RegistryItemIntune -eq "AttackSurfaceReductionRules") {
+                    #
+                    # ASR rules
+                    #
+                    If ($Finding.RegistryItem -eq "ExploitGuard_ASR_Rules") {
+                        # There is no Intune setting for generally enabled ASR rules, if something is configured, HardeningKitty assumes it is in use
+                        If ($Result.Length -gt 0) {
+                            $Result = 1
+                        }
+                    } Else {
+                        # Going through ASR rules
+                        try {
+                            $ResultAsr = $Result.Split("|")
+                            ForEach ($AsrRow in $ResultAsr) {
+                                $AsrRule = $AsrRow.Split("=")
+                                If ($AsrRule[0] -eq $Finding.RegistryItem) {
+                                    $Result = $AsrRule[1]
+                                    Break
+                                } Else {
+                                    $Result = $Finding.DefaultValue
+                                    $ResultDefaultValue = $true
+                                }
+                            }
+                        } catch {
                             $Result = $Finding.DefaultValue
+                            $ResultDefaultValue = $true
+                        }
+                    }
+                } ElseIf ($Source -eq "Intune" -and $Finding.Method -eq 'Registry' -and $Finding.RegistryItemIntune -eq "HardenedUNCPaths") {
+                    #
+                    # Hardened UNC path
+                    # Intune uses &#xF000; as a delimiter to configure multiple paths
+                    # All UNC paths are in the value parameter of the "Pol_HardenedPaths" data id
+                    #
+                    $Delimiter = [char]::ConvertFromUtf32(0xF000)
+                    If ($Result.contains($Delimiter)) {
+                        $PreviousValue = ""
+                        try {
+                            # Finding list contains path and the recommend configuration
+                            $RecommendedValue = $Finding.RecommendedValueIntune.Split(";")
+                            # Convert raw Intune value into XML, and separate the components
+                            $XmlString = "<root>$Result</root>"
+                            $XmlObject = [xml]$XmlString
+                            $UncPaths = $XmlObject.root.data.value.Split($Delimiter)
+                            # The path configuration is in the element before the path in the array
+                            ForEach ($UncPath in $UncPaths) {
+                                If ($UncPath -eq $RecommendedValue[0]) {
+                                    $Result = $RecommendedValue[0]+";"+$PreviousValue
+                                    Break
+                                }
+                                $PreviousValue = $UncPath
+                            }
+                        } catch {
+                            # If something goes wrong or Intune output is unexpected
+                            $Result = "NotConfigured"
+                        }
+                    }
+                } ElseIf ($Source -eq "Intune" -and $Finding.RegistryItemIntune -eq "PreventInstallationOfMatchingDeviceSetupClasses") {
+                    #
+                    # Prevent installation of devices using drivers that match an device setup class
+                    #
+                    try {
+                        # Finding list contains id and the recommend configuration
+                        $RecommendedValue = $Finding.RecommendedValueIntune.Split(";")
+
+                        # Check if setting is enabled
+                        If ($RecommendedValue[0] -eq "PreventInstallationOfMatchingDeviceSetupClasses") {
+                            If ($Result.StartsWith("<enabled")) {
+                                $Result = $RecommendedValue[0]+";<enabled />"
+                            } Else {
+                                $Result = $RecommendedValue[0]+";<disabled />"
+                            }
+                        # Go through additional configuration
+                        } Else {
+                            # Convert raw Intune value to XML
+                            $XmlString = "<root>$Result</root>"
+                            $XmlObject = [xml]$XmlString
+
+                            ForEach ($row in $XmlObject.root) {
+                                # Check if retroactive mode is active
+                                If ($RecommendedValue[0] -eq "DeviceInstall_Classes_Deny_Retroactive") {
+                                    If ($row.data.id -eq $RecommendedValue[0]) {
+                                        If ($row.data.value -eq $RecommendedValue[1]) {
+                                            $Result = $RecommendedValue[0]+";true"
+                                            Break
+                                        }
+                                    }
+                                # Check list of device classes
+                                } ElseIf ($RecommendedValue[0] -eq "DeviceInstall_Classes_Deny_List") {
+                                    If ($row.data.id -eq $RecommendedValue[0]) {
+                                        # Intune uses &#xF000; as a delimiter to configure multiple classes
+                                        $Delimiter = [char]::ConvertFromUtf32(0xF000)
+                                        $DenyList = $row.data.value.Split($Delimiter)
+                                        # Go through list of device classes
+                                        ForEach ($entry in $DenyList) {
+                                            If ($entry -eq $RecommendedValue[1]) {
+                                                $Result = $RecommendedValue[0]+";"+$entry
+                                                Break
+                                            } Else {
+                                                $Result = $RecommendedValue[0]+";{NotFound}"
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     } catch {
-                        $Result = $Finding.DefaultValue
+                        # If something goes wrong or Intune output is unexpected
+                        $Result = "NotConfigured"
+                    }
+                } ElseIf ($Source -eq "Intune" -and $Finding.Method -eq 'Registry' -and $Finding.RegistryItemIntune -in $RegistryItemCollection) {
+                    #
+                    # Parse the Intune settings in "XML" format to retrieve a specific item/configuration
+                    #
+                    try {
+                        $XmlString = "<root>$Result</root>"
+                        $XmlObject = [xml]$XmlString
+                        ForEach ($row in $XmlObject.root.data) {
+                            If ([string]$row.id.Equals($Finding.MethodArgument)) {
+                                $Result = $row.value
+                                Break
+                            }
+                        }
+                    } catch {
+                        # If something goes wrong or Intune output is unexpected
+                        $Result = "NotConfigured"
                     }
                 }
 
+                #
+                # Compare the result with the recommendation
+                #
                 $ResultPassed = $false
-                Switch ($Finding.Operator) {
-
-                    "="  { If ([string] $Result -eq $Finding.RecommendedValue) { $ResultPassed = $true }; Break }
-                    "<=" { try { If ([int]$Result -le [int]$Finding.RecommendedValue) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
-                    "<=!0" { try { If ([int]$Result -le [int]$Finding.RecommendedValue -and [int]$Result -ne 0) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
-                    ">=" { try { If ([int]$Result -ge [int]$Finding.RecommendedValue) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
-                    "contains" { If ($Result.ToString().Contains($Finding.RecommendedValue)) { $ResultPassed = $true }; Break }
-                    "!="  { If ([string] $Result -ne $Finding.RecommendedValue) { $ResultPassed = $true }; Break }
-                    "=|0" { try { If ([string]$Result -eq $Finding.RecommendedValue -or $Result.Length -eq 0) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
+                If ($Source -eq "Intune" -and ($Finding.Method -eq "Registry" -or $Finding.Method -eq "RegistryList")) {
+                    Switch ($Finding.OperatorIntune) {
+                        "="  { If ([string] $Result -eq $Finding.RecommendedValueIntune) { $ResultPassed = $true }; Break }
+                        "<=" { try { If ([int]$Result -le [int]$Finding.RecommendedValueIntune) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
+                        "<=!0" { try { If ([int]$Result -le [int]$Finding.RecommendedValueIntune -and [int]$Result -ne 0) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
+                        ">=" { try { If ([int]$Result -ge [int]$Finding.RecommendedValueIntune) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
+                        "contains" { If ($Result.ToString().Contains($Finding.RecommendedValueIntune)) { $ResultPassed = $true }; Break }
+                        "notcontains" { If (-not($Result.ToString().Contains($Finding.RecommendedValueIntune))) { $ResultPassed = $true }; Break }
+                        "!="  { If ([string] $Result -ne $Finding.RecommendedValueIntune) { $ResultPassed = $true }; Break }
+                        "=|0" { try { If ([string]$Result -eq $Finding.RecommendedValueIntune -or $Result.Length -eq 0) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
+                    }
+                } Else {
+                    Switch ($Finding.Operator) {
+                        "="  { If ([string] $Result -eq $Finding.RecommendedValue) { $ResultPassed = $true }; Break }
+                        "<=" { try { If ([int]$Result -le [int]$Finding.RecommendedValue) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
+                        "<=!0" { try { If ([int]$Result -le [int]$Finding.RecommendedValue -and [int]$Result -ne 0) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
+                        ">=" { try { If ([int]$Result -ge [int]$Finding.RecommendedValue) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
+                        "contains" { If ($Result.ToString().Contains($Finding.RecommendedValue)) { $ResultPassed = $true }; Break }
+                        "notcontains" { If (-not($Result.ToString().Contains($Finding.RecommendedValue))) { $ResultPassed = $true }; Break }
+                        "!="  { If ([string] $Result -ne $Finding.RecommendedValue) { $ResultPassed = $true }; Break }
+                        "=|0" { try { If ([string]$Result -eq $Finding.RecommendedValue -or $Result.Length -eq 0) { $ResultPassed = $true } } catch { $ResultPassed = $false }; Break }
+                    }
                 }
 
                 #
@@ -1548,10 +1982,14 @@
                 }
 
                 If ($ResultPassed) {
-
                     # Passed
                     $TestResult = "Passed"
-                    $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", Result=$Result, Recommended=" + $Finding.RecommendedValue + ", Severity=Passed"
+                    If ($Source -eq "Intune" -and ($Finding.Method -eq "Registry" -or $Finding.Method -eq "RegistryList")) {
+                        $MessageRecommendedValue = $Finding.RecommendedValueIntune
+                    } Else {
+                        $MessageRecommendedValue = $Finding.RecommendedValue
+                    }
+                    $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", Result=$Result, Recommended=" + $MessageRecommendedValue + ", Severity=Passed"
                     Write-ResultEntry -Text $Message -SeverityLevel "Passed"
 
                     If ($Log) {
@@ -1565,9 +2003,11 @@
                             Name = $Finding.Name
                             Severity = "Passed"
                             Result = $Result
-                            Recommended = $Finding.RecommendedValue
+                            Recommended = $MessageRecommendedValue
                             TestResult = $TestResult
                             SeverityFinding = $Finding.Severity
+                            DefaultValue = $ResultDefaultValue
+                            Filter = $Finding.Filter
                         }
                         $ReportAllResults += $ReportResult
                     }
@@ -1576,13 +2016,19 @@
                     $StatsPassed++
 
                 } Else {
-
                     # Failed
                     $TestResult = "Failed"
-                    If ($Finding.Operator -eq "!=") {
-                        $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", Result=$Result, Recommended=Not " + $Finding.RecommendedValue + ", Severity=" + $Finding.Severity
+                    If ($Source -eq "Intune" -and $Finding.Method -eq "Registry") {
+                        $MessageRecommendedValue = $Finding.RecommendedValueIntune
+                        $FindingOperator = $Finding.OperatorIntune
                     } Else {
-                        $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", Result=$Result, Recommended=" + $Finding.RecommendedValue + ", Severity=" + $Finding.Severity
+                        $MessageRecommendedValue = $Finding.RecommendedValue
+                        $FindingOperator = $Finding.Operator
+                    }
+                    If ($FindingOperator -eq "!=") {
+                        $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", Result=$Result, Recommended=Not " + $MessageRecommendedValue + ", Severity=" + $Finding.Severity
+                    } Else {
+                        $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", Result=$Result, Recommended=" + $MessageRecommendedValue + ", Severity=" + $Finding.Severity
                     }
 
                     Write-ResultEntry -Text $Message -SeverityLevel $Finding.Severity
@@ -1598,9 +2044,11 @@
                             Name = $Finding.Name
                             Severity = $Finding.Severity
                             Result = $Result
-                            Recommended = $Finding.RecommendedValue
+                            Recommended = $MessageRecommendedValue
                             TestResult = $TestResult
                             SeverityFinding = $Finding.Severity
+                            DefaultValue = $ResultDefaultValue
+                            Filter = $Finding.Filter
                         }
                         $ReportAllResults += $ReportResult
                     }
@@ -1632,9 +2080,11 @@
                         Name = $Finding.Name
                         Severity = ""
                         Result = $Result
-                        Recommended = $Finding.RecommendedValue
+                        Recommended = ""
                         TestResult = ""
                         SeverityFinding = ""
+                        DefaultValue = $ResultDefaultValue
+                        Filter = $Finding.Filter
                     }
                     $ReportAllResults += $ReportResult
                 }
@@ -1695,6 +2145,23 @@
         }
 
         $FindingList = Import-Csv -Path $FileFindingList -Delimiter ","
+
+        # Verify the finding list against the signed official manifest before applying anything.
+        # HailMary is a write mode: refuse an unverified (custom / modified) list unless the operator
+        # explicitly accepts the risk with -AllowCustomList.
+        $ListStatus = Confirm-FindingListIntegrity -ListPath $FileFindingList `
+            -ManifestPath (Join-Path -Path $PSScriptRoot -ChildPath "lists\$HardeningKittyListManifestName") `
+            -SignaturePath (Join-Path -Path $PSScriptRoot -ChildPath "lists\$HardeningKittyListManifestName.p7s") `
+            -PinnedThumbprint $HardeningKittyListSigningThumbprint
+        If ($ListStatus.Verified) {
+            Write-ProtocolEntry -Text "Finding list verified as official (signature valid). SHA-256: $($ListStatus.Hash)" -LogLevel "Success"
+        } ElseIf ($AllowCustomList) {
+            Write-ProtocolEntry -Text "Applying an UNVERIFIED finding list at your own risk ($($ListStatus.Reason)). SHA-256: $($ListStatus.Hash)" -LogLevel "Warning"
+        } Else {
+            Write-ProtocolEntry -Text "Refusing to apply an unverified finding list in $Mode mode ($($ListStatus.Reason)). SHA-256: $($ListStatus.Hash). Re-run with -AllowCustomList to apply it at your own risk." -LogLevel "Error"
+            Break
+        }
+
         $LastCategory = ""
         $ProcessmitigationEnableArray = @()
         $ProcessmitigationDisableArray = @()
@@ -1713,6 +2180,15 @@
             If (-not($IsAdmin)) {
                 Write-NotAdminError -FindingID "42" -FindingName "System Restore Point" -FindingMethod "Checkpoint-Computer"
                 Continue
+            }
+
+            If ($PSVersionTable.PSVersion.Major -gt 5) {
+                $Message = "The cmdlet used to create a system restore has been removed from PowerShell in version 6 onwards. To create a system restore, run HardeninKitty with PowerShell version 5. Alternatively, create a system restore point manually and use the -SkipRestorePoint parameter to run HailMary anyway. Be careful!"
+                Write-ResultEntry -Text $Message -SeverityLevel "High"
+                If ($Log) {
+                    Add-MessageToFile -Text $Message -File $LogFile
+                }
+                Break
             }
 
             Try {
@@ -2014,8 +2490,36 @@
                     "Security Options" { $Area = "SECURITYPOLICY"; Break }
                 }
 
-                $TempFileName = [System.IO.Path]::GetTempFileName()
-                $TempDbFileName = [System.IO.Path]::GetTempFileName()
+                # MethodArgument comes from the finding list and is written into the security
+                # policy that is applied with secedit /configure /overwrite. Reject control
+                # characters (CR/LF) so a finding list entry cannot inject additional INI lines.
+                If ($Finding.MethodArgument -match "[\r\n]") {
+                    $ResultText = "Invalid MethodArgument, contains control characters"
+                    $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", " + $ResultText
+                    $MessageSeverity = "High"
+                    $TestResult = "Failed"
+                    Write-ResultEntry -Text $Message -SeverityLevel $MessageSeverity
+                    If ($Log) {
+                        Add-MessageToFile -Text $Message -File $LogFile
+                    }
+                    If ($Report) {
+                        $ReportResult = [ordered] @{
+                            ID = $Finding.ID
+                            Category = $Finding.Category
+                            Name = $Finding.Name
+                            Severity = $MessageSeverity
+                            Result = $ResultText
+                            Recommended = ""
+                            TestResult = $TestResult
+                            SeverityFinding = ""
+                        }
+                        $ReportAllResults += $ReportResult
+                    }
+                    Continue
+                }
+
+                $TempFileName = New-HardeningKittyTempFile -Directory $HardeningKittyTempDir -CreateFile
+                $TempDbFileName = New-HardeningKittyTempFile -Directory $HardeningKittyTempDir -CreateFile
 
                 &$BinarySecedit /export /cfg $TempFileName /areas $Area | Out-Null
 
@@ -2220,13 +2724,49 @@
                 }
 
                 $Area = "USER_RIGHTS";
-                $TempFileName = [System.IO.Path]::GetTempFileName()
-                $TempDbFileName = [System.IO.Path]::GetTempFileName()
+
+                # MethodArgument comes from the finding list and is written into the security
+                # policy that is applied with secedit /configure /overwrite. Reject control
+                # characters (CR/LF) so a finding list entry cannot inject additional INI lines.
+                If ($Finding.MethodArgument -match "[\r\n]") {
+                    $ResultText = "Invalid MethodArgument, contains control characters"
+                    $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", " + $ResultText
+                    $MessageSeverity = "High"
+                    $TestResult = "Failed"
+                    Write-ResultEntry -Text $Message -SeverityLevel $MessageSeverity
+                    If ($Log) {
+                        Add-MessageToFile -Text $Message -File $LogFile
+                    }
+                    If ($Report) {
+                        $ReportResult = [ordered] @{
+                            ID = $Finding.ID
+                            Category = $Finding.Category
+                            Name = $Finding.Name
+                            Severity = $MessageSeverity
+                            Result = $ResultText
+                            Recommended = ""
+                            TestResult = $TestResult
+                            SeverityFinding = ""
+                        }
+                        $ReportAllResults += $ReportResult
+                    }
+                    Continue
+                }
+
+                $TempFileName = New-HardeningKittyTempFile -Directory $HardeningKittyTempDir -CreateFile
+                $TempDbFileName = New-HardeningKittyTempFile -Directory $HardeningKittyTempDir -CreateFile
 
                 &$BinarySecedit /export /cfg $TempFileName /areas $Area | Out-Null
 
+                # MethodArgument is used to locate and rewrite the matching line. Escape it so it is
+                # treated as literal text and cannot inject regular-expression metacharacters. The
+                # replacement text is likewise escaped so a literal "$" is not interpreted as a
+                # regex substitution token ($1, $&, ...).
+                $MethodArgumentPattern = [regex]::Escape($Finding.MethodArgument) + ".*"
+
                 if ($Finding.RecommendedValue -eq "") {
-                    (Get-Content -Encoding unicode $TempFileName) -replace "$($Finding.MethodArgument).*", "$($Finding.MethodArgument) = " | Out-File $TempFileName
+                    $Replacement = ($Finding.MethodArgument + " = ").Replace('$', '$$')
+                    (Get-Content -Encoding unicode $TempFileName) -replace $MethodArgumentPattern, $Replacement | Out-File $TempFileName
                 } else {
                     $ListTranslated = @()
                     $Finding.RecommendedValue -split ';' | Where-Object {
@@ -2238,8 +2778,9 @@
                     }
 
                     # If User Right Assignment exists, replace values
-                    If ( ((Get-Content -Encoding unicode $TempFileName) | Select-String $($Finding.MethodArgument)).Count -gt 0 ) {
-                        (Get-Content -Encoding unicode $TempFileName) -replace "$($Finding.MethodArgument).*", "$($Finding.MethodArgument) = $($ListTranslated -join ',')" | Out-File $TempFileName
+                    If ( ((Get-Content -Encoding unicode $TempFileName) | Select-String -SimpleMatch $Finding.MethodArgument).Count -gt 0 ) {
+                        $Replacement = ($Finding.MethodArgument + " = " + ($ListTranslated -join ',')).Replace('$', '$$')
+                        (Get-Content -Encoding unicode $TempFileName) -replace $MethodArgumentPattern, $Replacement | Out-File $TempFileName
                     }
                     # If it does not exist, add a new entry into the file at the right position
                     Else {
@@ -2658,32 +3199,35 @@
                         $Result = $Matches[1]
                     } Else {
                         $Result = $Finding.DefaultValue
+                        $ResultDefaultValue = $true
                     }
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
 
                 If ($Result -ne $Finding.RecommendedValue) {
 
                     try {
-
                         $ResultOutput = &$BinaryBcdedit "/set" $Finding.MethodArgument $Finding.RecommendedValue
-
+                        $ResultExitCode = $LASTEXITCODE
                     } catch {
+                        $ResultExitCode = 1
+                    }
 
+                    If ($ResultExitCode -eq 0) {
+                        $ResultText = "Setting enabled. Please restart the system to activate it"
+                        $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", " + $ResultText
+                        $MessageSeverity = "Passed"
+                        $TestResult = "Passed"
+                    } Else {
                         $ResultText = "Setting could not be enabled"
                         $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", " + $ResultText
                         $MessageSeverity = "High"
                         $TestResult = "Failed"
                     }
-
-                    $ResultText = "Setting enabled. Please restart the system to activate it"
-                    $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", " + $ResultText
-                    $MessageSeverity = "Passed"
-                    $TestResult = "Passed"
                 } Else {
-
                     $ResultText = "Setting is already set correct"
                     $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", " + $ResultText
                     $MessageSeverity = "Passed"
@@ -2746,6 +3290,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
 
                 # Go on if rule not exists
@@ -2773,7 +3318,8 @@
                     }
                 } Else {
                     # Excellent
-                    $ResultText = "Rule already exists"
+                    $ResultText = "Rule already exists, setting Recommended Value"
+                    Set-NetFirewallRule -DisplayName $FwDisplayName -Enabled $Finding.RecommendedValue
                     $Message = "ID " + $Finding.ID + ", " + $Finding.Name + ", " + $ResultText
                     $MessageSeverity = "Passed"
                     $TestResult = "Passed"
@@ -2819,6 +3365,7 @@
 
                 } catch {
                     $Result = $Finding.DefaultValue
+                    $ResultDefaultValue = $true
                 }
 
                 # Check if a modification is requried
@@ -3042,6 +3589,24 @@
 
         # Iterrate over finding list
         $FindingList = Import-Csv -Path $FileFindingList -Delimiter ","
+
+        # Verify the finding list against the signed official manifest before creating the GPO.
+        # GPO is a write mode: refuse an unverified (custom / modified) list unless the operator
+        # explicitly accepts the risk with -AllowCustomList. This runs before New-GPO so a refused
+        # run does not leave an empty GPO behind.
+        $ListStatus = Confirm-FindingListIntegrity -ListPath $FileFindingList `
+            -ManifestPath (Join-Path -Path $PSScriptRoot -ChildPath "lists\$HardeningKittyListManifestName") `
+            -SignaturePath (Join-Path -Path $PSScriptRoot -ChildPath "lists\$HardeningKittyListManifestName.p7s") `
+            -PinnedThumbprint $HardeningKittyListSigningThumbprint
+        If ($ListStatus.Verified) {
+            Write-ProtocolEntry -Text "Finding list verified as official (signature valid). SHA-256: $($ListStatus.Hash)" -LogLevel "Success"
+        } ElseIf ($AllowCustomList) {
+            Write-ProtocolEntry -Text "Applying an UNVERIFIED finding list at your own risk ($($ListStatus.Reason)). SHA-256: $($ListStatus.Hash)" -LogLevel "Warning"
+        } Else {
+            Write-ProtocolEntry -Text "Refusing to apply an unverified finding list in $Mode mode ($($ListStatus.Reason)). SHA-256: $($ListStatus.Hash). Re-run with -AllowCustomList to apply it at your own risk." -LogLevel "Error"
+            Break
+        }
+
         ForEach ($Finding in $FindingList) {
             #
             # Only Registry Method Policies
@@ -3094,25 +3659,28 @@
                 }
             }
         }
-     }
-
-    Write-Output "`n"
-    Write-ProtocolEntry -Text "HardeningKitty is done" -LogLevel "Info"
+    }
 
     # Write report file
     If ($Report) {
+        Write-Output "`n"
+        Write-ProtocolEntry -Text "HardeningKitty prepares the report" -LogLevel "Info"
         ForEach ($ReportResult in $ReportAllResults) {
             $ResultObject = [pscustomobject] $ReportResult
             $ResultObject | Export-Csv -Path $ReportFile -Delimiter "," -NoTypeInformation -Append
         }
+        Write-ProtocolEntry -Text "Report done" -LogLevel "Info"
     }
 
     # Write backup file
     If ($Backup) {
+        Write-Output "`n"
+        Write-ProtocolEntry -Text "HardeningKitty prepares the backup file" -LogLevel "Info"
         ForEach ($BackupResult in $BackupAllResults) {
             $BackupObject = [pscustomobject] $BackupResult
             $BackupObject | Export-Csv -Path $BackupFile -Delimiter "," -NoTypeInformation -Append
         }
+        Write-ProtocolEntry -Text "Backup file done" -LogLevel "Info"
     }
 
     If ($Mode -eq "Audit") {
@@ -3130,23 +3698,28 @@
         If ($StatsPassed -eq 0 ) {
             $HardeningKittyScoreRounded = 1.00
         }
-
         If ($Script:StatsError -gt 0) {
             Write-ProtocolEntry -Text "During the execution of HardeningKitty errors occurred due to missing admin rights or tools. For a complete result, these errors should be resolved. Total errors: $Script:StatsError" -LogLevel "Error"
         }
-
+        Write-Output "`n"
         Write-ProtocolEntry -Text "Your HardeningKitty score is: $HardeningKittyScoreRounded. HardeningKitty Statistics: Total checks: $StatsTotal - Passed: $StatsPassed, Low: $StatsLow, Medium: $StatsMedium, High: $StatsHigh." -LogLevel "Info"
     }
-    Write-Output "`n"
+
+    # Remove the private working directory and any remaining temporary files
+    If ($HardeningKittyTempDir -and (Test-Path -LiteralPath $HardeningKittyTempDir)) {
+        Remove-Item -LiteralPath $HardeningKittyTempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    Write-ProtocolEntry -Text "HardeningKitty is done" -LogLevel "Info"
 }
 
 Export-ModuleMember -Function Invoke-HardeningKitty
 
 # SIG # Begin signature block
-# MIIsHAYJKoZIhvcNAQcCoIIsDTCCLAkCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
+# MIItNQYJKoZIhvcNAQcCoIItJjCCLSICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU/RrVnNr5cYpDW+4iV/63tvtH
-# JGSggiVUMIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUiU6k/Q48TgQSc9iBr56w/XI7
+# DhqggiZsMIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -3175,208 +3748,214 @@ Export-ModuleMember -Function Invoke-HardeningKitty
 # ZsBRNraJAlTH/Fj7bADu/pimLpWhDFMpH2/YGaZPnvesCepdgsaLr4CnvYFIUoQx
 # 2jLsFeSmTD1sOXPUC4U5IOCFGmjhp0g4qdE2JXfBjRkWxYhMZn0vY86Y6GnfrDyo
 # XZ3JHFuu2PMvdM+4fvbXg50RlmKarkUT2n/cR/vfw1Kf5gZV6Z2M8jpiUbzsJA8p
-# 1FiAhORFe1rYMIIGFDCCA/ygAwIBAgIQeiOu2lNplg+RyD5c9MfjPzANBgkqhkiG
-# 9w0BAQwFADBXMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVk
-# MS4wLAYDVQQDEyVTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1waW5nIFJvb3QgUjQ2
-# MB4XDTIxMDMyMjAwMDAwMFoXDTM2MDMyMTIzNTk1OVowVTELMAkGA1UEBhMCR0Ix
-# GDAWBgNVBAoTD1NlY3RpZ28gTGltaXRlZDEsMCoGA1UEAxMjU2VjdGlnbyBQdWJs
-# aWMgVGltZSBTdGFtcGluZyBDQSBSMzYwggGiMA0GCSqGSIb3DQEBAQUAA4IBjwAw
-# ggGKAoIBgQDNmNhDQatugivs9jN+JjTkiYzT7yISgFQ+7yavjA6Bg+OiIjPm/N/t
-# 3nC7wYUrUlY3mFyI32t2o6Ft3EtxJXCc5MmZQZ8AxCbh5c6WzeJDB9qkQVa46xiY
-# Epc81KnBkAWgsaXnLURoYZzksHIzzCNxtIXnb9njZholGw9djnjkTdAA83abEOHQ
-# 4ujOGIaBhPXG2NdV8TNgFWZ9BojlAvflxNMCOwkCnzlH4oCw5+4v1nssWeN1y4+R
-# laOywwRMUi54fr2vFsU5QPrgb6tSjvEUh1EC4M29YGy/SIYM8ZpHadmVjbi3Pl8h
-# JiTWw9jiCKv31pcAaeijS9fc6R7DgyyLIGflmdQMwrNRxCulVq8ZpysiSYNi79tw
-# 5RHWZUEhnRfs/hsp/fwkXsynu1jcsUX+HuG8FLa2BNheUPtOcgw+vHJcJ8HnJCrc
-# UWhdFczf8O+pDiyGhVYX+bDDP3GhGS7TmKmGnbZ9N+MpEhWmbiAVPbgkqykSkzyY
-# Vr15OApZYK8CAwEAAaOCAVwwggFYMB8GA1UdIwQYMBaAFPZ3at0//QET/xahbIIC
-# L9AKPRQlMB0GA1UdDgQWBBRfWO1MMXqiYUKNUoC6s2GXGaIymzAOBgNVHQ8BAf8E
-# BAMCAYYwEgYDVR0TAQH/BAgwBgEB/wIBADATBgNVHSUEDDAKBggrBgEFBQcDCDAR
-# BgNVHSAECjAIMAYGBFUdIAAwTAYDVR0fBEUwQzBBoD+gPYY7aHR0cDovL2NybC5z
-# ZWN0aWdvLmNvbS9TZWN0aWdvUHVibGljVGltZVN0YW1waW5nUm9vdFI0Ni5jcmww
-# fAYIKwYBBQUHAQEEcDBuMEcGCCsGAQUFBzAChjtodHRwOi8vY3J0LnNlY3RpZ28u
-# Y29tL1NlY3RpZ29QdWJsaWNUaW1lU3RhbXBpbmdSb290UjQ2LnA3YzAjBggrBgEF
-# BQcwAYYXaHR0cDovL29jc3Auc2VjdGlnby5jb20wDQYJKoZIhvcNAQEMBQADggIB
-# ABLXeyCtDjVYDJ6BHSVY/UwtZ3Svx2ImIfZVVGnGoUaGdltoX4hDskBMZx5NY5L6
-# SCcwDMZhHOmbyMhyOVJDwm1yrKYqGDHWzpwVkFJ+996jKKAXyIIaUf5JVKjccev3
-# w16mNIUlNTkpJEor7edVJZiRJVCAmWAaHcw9zP0hY3gj+fWp8MbOocI9Zn78xvm9
-# XKGBp6rEs9sEiq/pwzvg2/KjXE2yWUQIkms6+yslCRqNXPjEnBnxuUB1fm6bPAV+
-# Tsr/Qrd+mOCJemo06ldon4pJFbQd0TQVIMLv5koklInHvyaf6vATJP4DfPtKzSBP
-# kKlOtyaFTAjD2Nu+di5hErEVVaMqSVbfPzd6kNXOhYm23EWm6N2s2ZHCHVhlUgHa
-# C4ACMRCgXjYfQEDtYEK54dUwPJXV7icz0rgCzs9VI29DwsjVZFpO4ZIVR33LwXyP
-# DbYFkLqYmgHjR3tKVkhh9qKV2WCmBuC27pIOx6TYvyqiYbntinmpOqh/QPAnhDge
-# xKG9GX/n1PggkGi9HCapZp8fRwg8RftwS21Ln61euBG0yONM6noD2XQPrFwpm3Gc
-# uqJMf0o8LLrFkSLRQNwxPDDkWXhW+gZswbaiie5fd/W2ygcto78XCSPfFWveUOSZ
-# 5SqK95tBO8aTHmEa4lpJVD7HrTEn9jb1EGvxOb1cnn0CMIIGHDCCBASgAwIBAgIQ
-# M9cIqJFAUxnipbvTObmtbjANBgkqhkiG9w0BAQwFADBWMQswCQYDVQQGEwJHQjEY
-# MBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMS0wKwYDVQQDEyRTZWN0aWdvIFB1Ymxp
-# YyBDb2RlIFNpZ25pbmcgUm9vdCBSNDYwHhcNMjEwMzIyMDAwMDAwWhcNMzYwMzIx
-# MjM1OTU5WjBXMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVk
-# MS4wLAYDVQQDEyVTZWN0aWdvIFB1YmxpYyBDb2RlIFNpZ25pbmcgQ0EgRVYgUjM2
-# MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAu9H+HrdCW3j1kKeuLIPx
-# jSHTMIaFe9/TzdkWS6yFxbsBz+KMKBFyBHYsgcWrEnpASsUQ6IEUORtfTwf2MDAw
-# fzUl5cBzPUAJlOio+Os5C1XVtgyLHif43j4iwb/vZe5z7mXdKN27H32bMn+3mVUX
-# qrJJqDwQajrDIbKZqEPXO4KoGWG1PmpaXbi8nhPQCp71W49pOGjqpR9byiPuC+28
-# 0B5DQ26wU4zCcypEMW6+j7jGAva7ggQVeQxSIOiYJ3Fh7y/k+AL7M1m19MNV59/2
-# CCKuttEJWewBn3OJt0NP1fLZvVZZCd23F/bEdIC6h0asBtvbBA3VTrrujAk0GZUb
-# 5nATBCXfj7jXhDOMbKYM62i6lU98ROjUaY0lecMh8TV3+E+2ElWV0FboGALV7nnI
-# hqFp8RtOlBNqB2Lw0GuZpZdQnhwzoR7uYYsFaByO9e4mkIPW/nGFp5ryDRQ+NrUS
-# rXd1esznRjZqkFPLxpRx3gc6IfnWMmfgnG5UhqBkoIPLAgMBAAGjggFjMIIBXzAf
-# BgNVHSMEGDAWgBQy65Ka/zWWSC8oQEJwIDaRXBeF5jAdBgNVHQ4EFgQUgTKSQSso
-# zUbIxKLGKjkS7EipPxQwDgYDVR0PAQH/BAQDAgGGMBIGA1UdEwEB/wQIMAYBAf8C
-# AQAwEwYDVR0lBAwwCgYIKwYBBQUHAwMwGgYDVR0gBBMwETAGBgRVHSAAMAcGBWeB
-# DAEDMEsGA1UdHwREMEIwQKA+oDyGOmh0dHA6Ly9jcmwuc2VjdGlnby5jb20vU2Vj
-# dGlnb1B1YmxpY0NvZGVTaWduaW5nUm9vdFI0Ni5jcmwwewYIKwYBBQUHAQEEbzBt
-# MEYGCCsGAQUFBzAChjpodHRwOi8vY3J0LnNlY3RpZ28uY29tL1NlY3RpZ29QdWJs
-# aWNDb2RlU2lnbmluZ1Jvb3RSNDYucDdjMCMGCCsGAQUFBzABhhdodHRwOi8vb2Nz
-# cC5zZWN0aWdvLmNvbTANBgkqhkiG9w0BAQwFAAOCAgEAXzas+/n2cloUt/ALHd7Y
-# /ZcB0v0B7pkthuj2t/A5/9aBSlqnQkoKLRWd5pT9xWlKstdL8RYSTPa+kGZliy10
-# 1KsI92oRAwh3fL5p4bDbnySJA9beXKTgsta0z+M41bltzCfWzmQR6BBydtP54Oks
-# ielJ07OXlgYK4fYKyEGakV2B2DZ3mMqAQZeo+JE/Y5+qzVRUS4Dq9Rdm05Rx/Z79
-# RzHj6RqGHdO+INI/sVJfspO9jJUJmHKPlQH0mEOlSvsUJqqdNr9ysPzcvYQN7O00
-# qF6VKzgWYwV12fYxLhVr4pSyKtJ0NbWYmqP++CsvthdLJ2xa5rl2XtqG3atk1mrq
-# gxiIGzGC9YizlCXAIS8IaQLjTLtMKhEw64F5BuFBlSrUIPYLk+R8dgydHSZrX4QB
-# 9iqZza/ex/DkGKJOmy8qDGamknUmvtlANRNvrqY3GnrorRxRYwcqVgZs7X4Y9uPs
-# ZHOmbQg2i68Pma51axcrwk1qw1FGQVbpj8KN/xNxm9rtntOfq+VFphLFFFpSQZej
-# BgAIxeYc6ieCPDvb5kbE7y0ANRPNNn2d5aonCAXMzsA2DksZT9Bjmm2/xSlTMSLb
-# dVB3htDy+GruawYbPoUjK5fIfnqZQQzdWH8OqMMSPTo1m+CdLIwXgVREqHodmJ2W
-# f1lYplRl/1FCC/hH68/45b8wggZdMIIExaADAgECAhA6UmoshM5V5h1l/MwS2OmJ
-# MA0GCSqGSIb3DQEBDAUAMFUxCzAJBgNVBAYTAkdCMRgwFgYDVQQKEw9TZWN0aWdv
-# IExpbWl0ZWQxLDAqBgNVBAMTI1NlY3RpZ28gUHVibGljIFRpbWUgU3RhbXBpbmcg
-# Q0EgUjM2MB4XDTI0MDExNTAwMDAwMFoXDTM1MDQxNDIzNTk1OVowbjELMAkGA1UE
-# BhMCR0IxEzARBgNVBAgTCk1hbmNoZXN0ZXIxGDAWBgNVBAoTD1NlY3RpZ28gTGlt
+# 1FiAhORFe1rYMIIGHDCCBASgAwIBAgIQM9cIqJFAUxnipbvTObmtbjANBgkqhkiG
+# 9w0BAQwFADBWMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVk
+# MS0wKwYDVQQDEyRTZWN0aWdvIFB1YmxpYyBDb2RlIFNpZ25pbmcgUm9vdCBSNDYw
+# HhcNMjEwMzIyMDAwMDAwWhcNMzYwMzIxMjM1OTU5WjBXMQswCQYDVQQGEwJHQjEY
+# MBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMS4wLAYDVQQDEyVTZWN0aWdvIFB1Ymxp
+# YyBDb2RlIFNpZ25pbmcgQ0EgRVYgUjM2MIIBojANBgkqhkiG9w0BAQEFAAOCAY8A
+# MIIBigKCAYEAu9H+HrdCW3j1kKeuLIPxjSHTMIaFe9/TzdkWS6yFxbsBz+KMKBFy
+# BHYsgcWrEnpASsUQ6IEUORtfTwf2MDAwfzUl5cBzPUAJlOio+Os5C1XVtgyLHif4
+# 3j4iwb/vZe5z7mXdKN27H32bMn+3mVUXqrJJqDwQajrDIbKZqEPXO4KoGWG1Pmpa
+# Xbi8nhPQCp71W49pOGjqpR9byiPuC+280B5DQ26wU4zCcypEMW6+j7jGAva7ggQV
+# eQxSIOiYJ3Fh7y/k+AL7M1m19MNV59/2CCKuttEJWewBn3OJt0NP1fLZvVZZCd23
+# F/bEdIC6h0asBtvbBA3VTrrujAk0GZUb5nATBCXfj7jXhDOMbKYM62i6lU98ROjU
+# aY0lecMh8TV3+E+2ElWV0FboGALV7nnIhqFp8RtOlBNqB2Lw0GuZpZdQnhwzoR7u
+# YYsFaByO9e4mkIPW/nGFp5ryDRQ+NrUSrXd1esznRjZqkFPLxpRx3gc6IfnWMmfg
+# nG5UhqBkoIPLAgMBAAGjggFjMIIBXzAfBgNVHSMEGDAWgBQy65Ka/zWWSC8oQEJw
+# IDaRXBeF5jAdBgNVHQ4EFgQUgTKSQSsozUbIxKLGKjkS7EipPxQwDgYDVR0PAQH/
+# BAQDAgGGMBIGA1UdEwEB/wQIMAYBAf8CAQAwEwYDVR0lBAwwCgYIKwYBBQUHAwMw
+# GgYDVR0gBBMwETAGBgRVHSAAMAcGBWeBDAEDMEsGA1UdHwREMEIwQKA+oDyGOmh0
+# dHA6Ly9jcmwuc2VjdGlnby5jb20vU2VjdGlnb1B1YmxpY0NvZGVTaWduaW5nUm9v
+# dFI0Ni5jcmwwewYIKwYBBQUHAQEEbzBtMEYGCCsGAQUFBzAChjpodHRwOi8vY3J0
+# LnNlY3RpZ28uY29tL1NlY3RpZ29QdWJsaWNDb2RlU2lnbmluZ1Jvb3RSNDYucDdj
+# MCMGCCsGAQUFBzABhhdodHRwOi8vb2NzcC5zZWN0aWdvLmNvbTANBgkqhkiG9w0B
+# AQwFAAOCAgEAXzas+/n2cloUt/ALHd7Y/ZcB0v0B7pkthuj2t/A5/9aBSlqnQkoK
+# LRWd5pT9xWlKstdL8RYSTPa+kGZliy101KsI92oRAwh3fL5p4bDbnySJA9beXKTg
+# sta0z+M41bltzCfWzmQR6BBydtP54OksielJ07OXlgYK4fYKyEGakV2B2DZ3mMqA
+# QZeo+JE/Y5+qzVRUS4Dq9Rdm05Rx/Z79RzHj6RqGHdO+INI/sVJfspO9jJUJmHKP
+# lQH0mEOlSvsUJqqdNr9ysPzcvYQN7O00qF6VKzgWYwV12fYxLhVr4pSyKtJ0NbWY
+# mqP++CsvthdLJ2xa5rl2XtqG3atk1mrqgxiIGzGC9YizlCXAIS8IaQLjTLtMKhEw
+# 64F5BuFBlSrUIPYLk+R8dgydHSZrX4QB9iqZza/ex/DkGKJOmy8qDGamknUmvtlA
+# NRNvrqY3GnrorRxRYwcqVgZs7X4Y9uPsZHOmbQg2i68Pma51axcrwk1qw1FGQVbp
+# j8KN/xNxm9rtntOfq+VFphLFFFpSQZejBgAIxeYc6ieCPDvb5kbE7y0ANRPNNn2d
+# 5aonCAXMzsA2DksZT9Bjmm2/xSlTMSLbdVB3htDy+GruawYbPoUjK5fIfnqZQQzd
+# WH8OqMMSPTo1m+CdLIwXgVREqHodmJ2Wf1lYplRl/1FCC/hH68/45b8wggaCMIIE
+# aqADAgECAhA2wrC9fBs656Oz3TbLyXVoMA0GCSqGSIb3DQEBDAUAMIGIMQswCQYD
+# VQQGEwJVUzETMBEGA1UECBMKTmV3IEplcnNleTEUMBIGA1UEBxMLSmVyc2V5IENp
+# dHkxHjAcBgNVBAoTFVRoZSBVU0VSVFJVU1QgTmV0d29yazEuMCwGA1UEAxMlVVNF
+# UlRydXN0IFJTQSBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTAeFw0yMTAzMjIwMDAw
+# MDBaFw0zODAxMTgyMzU5NTlaMFcxCzAJBgNVBAYTAkdCMRgwFgYDVQQKEw9TZWN0
+# aWdvIExpbWl0ZWQxLjAsBgNVBAMTJVNlY3RpZ28gUHVibGljIFRpbWUgU3RhbXBp
+# bmcgUm9vdCBSNDYwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQCIndi5
+# RWedHd3ouSaBmlRUwHxJBZvMWhUP2ZQQRLRBQIF3FJmp1OR2LMgIU14g0JIlL6VX
+# WKmdbmKGRDILRxEtZdQnOh2qmcxGzjqemIk8et8sE6J+N+Gl1cnZocew8eCAawKL
+# u4TRrCoqCAT8uRjDeypoGJrruH/drCio28aqIVEn45NZiZQI7YYBex48eL78lQ0B
+# rHeSmqy1uXe9xN04aG0pKG9ki+PC6VEfzutu6Q3IcZZfm00r9YAEp/4aeiLhyaKx
+# LuhKKaAdQjRaf/h6U13jQEV1JnUTCm511n5avv4N+jSVwd+Wb8UMOs4netapq5Q/
+# yGyiQOgjsP/JRUj0MAT9YrcmXcLgsrAimfWY3MzKm1HCxcquinTqbs1Q0d2VMMQy
+# i9cAgMYC9jKc+3mW62/yVl4jnDcw6ULJsBkOkrcPLUwqj7poS0T2+2JMzPP+jZ1h
+# 90/QpZnBkhdtixMiWDVgh60KmLmzXiqJc6lGwqoUqpq/1HVHm+Pc2B6+wCy/GwCc
+# jw5rmzajLbmqGygEgaj/OLoanEWP6Y52Hflef3XLvYnhEY4kSirMQhtberRvaI+5
+# YsD3XVxHGBjlIli5u+NrLedIxsE88WzKXqZjj9Zi5ybJL2WjeXuOTbswB7XjkZbE
+# rg7ebeAQUQiS/uRGZ58NHs57ZPUfECcgJC+v2wIDAQABo4IBFjCCARIwHwYDVR0j
+# BBgwFoAUU3m/WqorSs9UgOHYm8Cd8rIDZsswHQYDVR0OBBYEFPZ3at0//QET/xah
+# bIICL9AKPRQlMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MBMGA1Ud
+# JQQMMAoGCCsGAQUFBwMIMBEGA1UdIAQKMAgwBgYEVR0gADBQBgNVHR8ESTBHMEWg
+# Q6BBhj9odHRwOi8vY3JsLnVzZXJ0cnVzdC5jb20vVVNFUlRydXN0UlNBQ2VydGlm
+# aWNhdGlvbkF1dGhvcml0eS5jcmwwNQYIKwYBBQUHAQEEKTAnMCUGCCsGAQUFBzAB
+# hhlodHRwOi8vb2NzcC51c2VydHJ1c3QuY29tMA0GCSqGSIb3DQEBDAUAA4ICAQAO
+# vmVB7WhEuOWhxdQRh+S3OyWM637ayBeR7djxQ8SihTnLf2sABFoB0DFR6JfWS0sn
+# f6WDG2gtCGflwVvcYXZJJlFfym1Doi+4PfDP8s0cqlDmdfyGOwMtGGzJ4iImyaz3
+# IBae91g50QyrVbrUoT0mUGQHbRcF57olpfHhQEStz5i6hJvVLFV/ueQ21SM99zG4
+# W2tB1ExGL98idX8ChsTwbD/zIExAopoe3l6JrzJtPxj8V9rocAnLP2C8Q5wXVVZc
+# bw4x4ztXLsGzqZIiRh5i111TW7HV1AtsQa6vXy633vCAbAOIaKcLAo/IU7sClyZU
+# k62XD0VUnHD+YvVNvIGezjM6CRpcWed/ODiptK+evDKPU2K6synimYBaNH49v9Ih
+# 24+eYXNtI38byt5kIvh+8aW88WThRpv8lUJKaPn37+YHYafob9Rg7LyTrSYpyZoB
+# mwRWSE4W6iPjB7wJjJpH29308ZkpKKdpkiS9WNsf/eeUtvRrtIEiSJHN899L1P4l
+# 6zKVsdrUu1FX1T/ubSrsxrYJD+3f3aKg6yxdbugot06YwGXXiy5UUGZvOu3lXlxA
+# +fC13dQ5OlL2gIb5lmF6Ii8+CQOYDwXM+yd9dbmocQsHjcRPsccUd5E9FiswEqOR
+# vz8g3s+jR3SFCgXhN4wz7NgAnOgpCdUo4uDyllU9PzCCBqcwggSPoAMCAQICEQCQ
+# rAhyIP3Fp8RrXMcN9z0GMA0GCSqGSIb3DQEBDAUAMFcxCzAJBgNVBAYTAkdCMRgw
+# FgYDVQQKEw9TZWN0aWdvIExpbWl0ZWQxLjAsBgNVBAMTJVNlY3RpZ28gUHVibGlj
+# IFRpbWUgU3RhbXBpbmcgUm9vdCBSNDYwHhcNMjYwMzI1MDAwMDAwWhcNNDEwMzI0
+# MjM1OTU5WjBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVk
+# MSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1waW5nIENBIFI0MTCC
+# AiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK7kSqIBrYIcYvlmLVuaA8zw
+# 1RfBhkn4G1CoemzjcYtML6yNUvKmwGH7y6/5MuSC1UYP/+9KYDSqvMQt/1hEKHYx
+# MAD9oZpBkoaDQFEKbOJHelsKe+BaO0ZcENTKfePcraVkA7wrGAW2XHA5gQCQv4IK
+# ori/3PNOXxnDMOk8yIMgVrlMeTxqfWJ4XkjT1xc2s9DD7URHWWJOFobTPoWs6mrD
+# FlaY9FlAHDYTfbzvxQHVsvRmn3W+5ZmCwyk02I8KgGPT/UX4sTz41GiR+ppwUjQX
+# a1+2tEHZbsdAKUtH3OPEVtZvlt7atx4h83IdRR8oYi8wjY3OjFKXFecWpQbzzsPx
+# bUKPwMWiTrzwkrFa8dH/1pDKRJt371W62PfqKPayCr/XbnBOlRn8CALSmHnRtGzu
+# AWtTJpcT3BKw6oy8IIL6wSbu938F6ZIbRNIc1dKbIJtr4ULN6R5ZfTdNEhwXctqp
+# 3RHDbg4fuOl6LjNoaFwjud92EEDhzxFJzE1jqN4csceZIwxOT1aqfsfh0uFQE/lg
+# TBuBs3i6/WL2W1OceWLy3XEdXRK1f0EWCuea6dNfX2RRdjUfk5EltFnJkN2+bWhn
+# K14OPRKcyjOv5hKZ0iV4NRNd1+hjtva1rPyzb5Bs7EvFxqEQhgZbOq7qH3nm0rBw
+# A0dxniBOYCFPdu246JCxAgMBAAGjggFuMIIBajAfBgNVHSMEGDAWgBT2d2rdP/0B
+# E/8WoWyCAi/QCj0UJTAdBgNVHQ4EFgQUOnSlDGfGQlDC/bX8x7spNIL0erkwDgYD
+# VR0PAQH/BAQDAgGGMBIGA1UdEwEB/wQIMAYBAf8CAQAwEwYDVR0lBAwwCgYIKwYB
+# BQUHAwgwIwYDVR0gBBwwGjAIBgZngQwBBAIwDgYMKwYBBAGyMQECAQMIMEwGA1Ud
+# HwRFMEMwQaA/oD2GO2h0dHA6Ly9jcmwuc2VjdGlnby5jb20vU2VjdGlnb1B1Ymxp
+# Y1RpbWVTdGFtcGluZ1Jvb3RSNDYuY3JsMHwGCCsGAQUFBwEBBHAwbjBHBggrBgEF
+# BQcwAoY7aHR0cDovL2NydC5zZWN0aWdvLmNvbS9TZWN0aWdvUHVibGljVGltZVN0
+# YW1waW5nUm9vdFI0Ni5wN2MwIwYIKwYBBQUHMAGGF2h0dHA6Ly9vY3NwLnNlY3Rp
+# Z28uY29tMA0GCSqGSIb3DQEBDAUAA4ICAQAy3lJHZvGeA2b43yhzoarvobHVzbfl
+# +RfuPDwej0wCQkYAN6scTt2GwFe22qbOCv/tllqFlLKQZE+E9jVyuPTbyQHwrM7R
+# 0oLapAEDC1+CowsqSRf/ptira5Pfd4PoHICnb9coPQtyZmHSQp5y9IGvqWf1qNfq
+# 7V2fHZ8DvEQrLUzeoGF9BJRYu2OzacW3QQtUum3NOVf0gPRwv6I4991uhncJ6VP4
+# lcpUpHZKB7R3hiIUC09mR9KjzPVnXHvL9n2bAwiUECfK5Zezhiw27F2tgi39DETf
+# U8M4n0N6xLgFzsf05M5GURX8C9+IX9V6kpmmKtrUzMti4LD66gtmf+mSm934K81N
+# L6YQeMEk1rpYrWPypcW76Mir6wb1AgseLIHqn/GkeuQm7zOTDf3f5WoX14qVNjZW
+# NHF3JxkutV6ZnhinfCLfdv5bnwKWUfceqOajCVntI6uCbHxjBg6SCsexc5AfIGno
+# 7gVFvwifT4XONPsSUaJ71XsJ+EvciVUVnjOO4qxm0fWJTd8a7jP8mc4ZPqwJvQFt
+# Op7+6G+kUJAF0fnE8YgD8uttBReNTa1YmAeFMiqc38e8fI4eLm0zjM/eeGCHasno
+# qqrbGwcF41iz9HXzFDwN4iD5z3QShp6HRiU3UpTwDJiiXcr0z6pjl7PyzJ3/tmWt
+# GehV7CAfc/WlyzCCBr4wggUmoAMCAQICEFjX+P4AIZWTs1+TYQBns3swDQYJKoZI
+# hvcNAQELBQAwVzELMAkGA1UEBhMCR0IxGDAWBgNVBAoTD1NlY3RpZ28gTGltaXRl
+# ZDEuMCwGA1UEAxMlU2VjdGlnbyBQdWJsaWMgQ29kZSBTaWduaW5nIENBIEVWIFIz
+# NjAeFw0yMzA4MjEwMDAwMDBaFw0yNjA4MjAyMzU5NTlaMIGRMRgwFgYDVQQFEw9D
+# SEUtMTA5LjgwNC4zODIxEzARBgsrBgEEAYI3PAIBAxMCQ0gxHTAbBgNVBA8TFFBy
+# aXZhdGUgT3JnYW5pemF0aW9uMQswCQYDVQQGEwJDSDEQMA4GA1UECAwHWsO8cmlj
+# aDEQMA4GA1UECgwHc2NpcCBhZzEQMA4GA1UEAwwHc2NpcCBhZzCCAiIwDQYJKoZI
+# hvcNAQEBBQADggIPADCCAgoCggIBALNDqgJV5RRiMAJ5e8iGcC8Q2ENMyhFDeXm4
+# KGGe3vqZVynLeacyvB7Gqosn3G+hfHg33kFeKWgFulrw4Zz9zU7ilqxUU/npeKp/
+# QhppTAeppNagzYt2kRSjdaNQsZw3HFGhALdSLhRO0c5WWLEdTm4+jFWnkRoxveJb
+# zJsUaNyhhF3VO+h762XjzXwqcBaueqfKgVVzk/Wh+H3efxkhv2Qvv1za7P3g+Jgx
+# UJm8ZCLq9VPK1lIsi1inGw/jUHyrapf1pyZUqEHhVPB4/on8bZjwEbwNsska40S4
+# JMpEuPijuEMSlgjs0qy0nJh/cAgBBP3MHgE0uWPfurpipf3+5nh1h3J0EmXeGLHm
+# 7cjuEJusTcVtmR+Lm3wFgre//X5a30Lr66ihSZwtF2izyZhIHgi6wpEjiee6kJgL
+# /ZuUBQJBLKnmMuw4l7F2BqVV0p7sCPyZ3raUFEZxrZqMILMYSmTmIAx+rjcScpxq
+# iJjhqOxGeIN8oNGCQnUlRZUKILCIj9RO4tq/aKVCRzcHM+u/ctdBAzrx0B5HoSvQ
+# /PjqJIn9veyAhtCie988KLfGtK9rF9W547whmBn6hjkzh9gTel5gjVQUNK6+OGak
+# WWf86VWrpKBop7bCKA66e59Hd4M674u2rwe3pfhG/ktKtT8GMQ1GE+ynbt/JYAOI
+# mlnuu7cBAgMBAAGjggHJMIIBxTAfBgNVHSMEGDAWgBSBMpJBKyjNRsjEosYqORLs
+# SKk/FDAdBgNVHQ4EFgQU+U/LlyHiKHvC6PbxZXmvqntTohMwDgYDVR0PAQH/BAQD
+# AgeAMAwGA1UdEwEB/wQCMAAwEwYDVR0lBAwwCgYIKwYBBQUHAwMwSQYDVR0gBEIw
+# QDA1BgwrBgEEAbIxAQIBBgEwJTAjBggrBgEFBQcCARYXaHR0cHM6Ly9zZWN0aWdv
+# LmNvbS9DUFMwBwYFZ4EMAQMwSwYDVR0fBEQwQjBAoD6gPIY6aHR0cDovL2NybC5z
+# ZWN0aWdvLmNvbS9TZWN0aWdvUHVibGljQ29kZVNpZ25pbmdDQUVWUjM2LmNybDB7
+# BggrBgEFBQcBAQRvMG0wRgYIKwYBBQUHMAKGOmh0dHA6Ly9jcnQuc2VjdGlnby5j
+# b20vU2VjdGlnb1B1YmxpY0NvZGVTaWduaW5nQ0FFVlIzNi5jcnQwIwYIKwYBBQUH
+# MAGGF2h0dHA6Ly9vY3NwLnNlY3RpZ28uY29tMDsGA1UdEQQ0MDKgIgYIKwYBBQUH
+# CAOgFjAUDBJDSC1DSEUtMTA5LjgwNC4zODKBDG1pc2NAc2NpcC5jaDANBgkqhkiG
+# 9w0BAQsFAAOCAYEAg/MzS935kdWYiX5Wx4LUNVSSS6RwRbtQb5uik5pPD+eqvp0z
+# OqCWkIxOcO5grfNKXem1OVYKeiTUQaMU2yw9+vy6gWyCihuU5mkSCiVtzjmk29PQ
+# RFI//zkw69MmpUfWR8mFYMAob0HEmSGSGVz1sT3wyC+uUQn+r/DH6Vcfvf1l56vC
+# +zZj8wxR5Kpk+ZO5zZiSGItOmakhP0pdy+NhoVAHaYodF6tBOmYsaC7a3OjvKgkm
+# sFwana2tAf7rx1ZOLLCwwTuCWutIqQlMH7ztSaJJN0RPHYfakY6Hrkd7f81B7/69
+# wjZIEHQJdK3DYCGFF56aP/Dog2LYViSE7VJqD2KcX/UrrbD/+BmxJH9gHx2UbT4w
+# Cw1o8loJedyI8/l8bZchmxBxop3x1P1j7C0ESKCg1fQmzQ2YxbC/KAvfekbCPMhz
+# 213eTsqQ7eAl471UjmiqntE8gB7DQdMHk/JZLULQFc1Uwug412KekEZNenQ/wMfZ
+# hiwcFCo+CYiBR5U3MIIG4jCCBMqgAwIBAgIRAOdO8lWwUE/626bf9/yLoxUwDQYJ
+# KoZIhvcNAQEMBQAwVTELMAkGA1UEBhMCR0IxGDAWBgNVBAoTD1NlY3RpZ28gTGlt
+# aXRlZDEsMCoGA1UEAxMjU2VjdGlnbyBQdWJsaWMgVGltZSBTdGFtcGluZyBDQSBS
+# NDEwHhcNMjYwMzI1MDAwMDAwWhcNMzcwNjI0MjM1OTU5WjByMQswCQYDVQQGEwJH
+# QjEXMBUGA1UECBMOR3JlYXRlciBMb25kb24xGDAWBgNVBAoTD1NlY3RpZ28gTGlt
 # aXRlZDEwMC4GA1UEAxMnU2VjdGlnbyBQdWJsaWMgVGltZSBTdGFtcGluZyBTaWdu
-# ZXIgUjM1MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAjdFn9MFIm739
-# OEk6TWGBm8PY3EWlYQQ2jQae45iWgPXUGVuYoIa1xjTGIyuw3suUSBzKiyG0/c/Y
-# n++d5mG6IyayljuGT9DeXQU9k8GWWj2/BPoamg2fFctnPsdTYhMGxM06z1+Ft0Ba
-# v8ybww21ii/faiy+NhiUM195+cFqOtCpJXxZ/lm9tpjmVmEqpAlRpfGmLhNdkqiE
-# uDFTuD1GsV3jvuPuPGKUJTam3P53U4LM0UCxeDI8Qz40Qw9TPar6S02XExlc8X1Y
-# siE6ETcTz+g1ImQ1OqFwEaxsMj/WoJT18GG5KiNnS7n/X4iMwboAg3IjpcvEzw4A
-# ZCZowHyCzYhnFRM4PuNMVHYcTXGgvuq9I7j4ke281x4e7/90Z5Wbk92RrLcS35hO
-# 30TABcGx3Q8+YLRy6o0k1w4jRefCMT7b5mTxtq5XPmKvtgfPuaWPkGZ/tbxInyND
-# A7YgOgccULjp4+D56g2iuzRCsLQ9ac6AN4yRbqCYsG2rcIQ5INTyI2JzA2w1vsAH
-# PRbUTeqVLDuNOY2gYIoKBWQsPYVoyzaoBVU6O5TG+a1YyfWkgVVS9nXKs8hVti3V
-# pOV3aeuaHnjgC6He2CCDL9aW6gteUe0AmC8XCtWwpePx6QW3ROZo8vSUe9AR7mMd
-# u5+FzTmW8K13Bt8GX/YBFJO7LWzwKAUCAwEAAaOCAY4wggGKMB8GA1UdIwQYMBaA
-# FF9Y7UwxeqJhQo1SgLqzYZcZojKbMB0GA1UdDgQWBBRo76QySWm2Ujgd6kM5LPQU
-# ap4MhTAOBgNVHQ8BAf8EBAMCBsAwDAYDVR0TAQH/BAIwADAWBgNVHSUBAf8EDDAK
-# BggrBgEFBQcDCDBKBgNVHSAEQzBBMDUGDCsGAQQBsjEBAgEDCDAlMCMGCCsGAQUF
-# BwIBFhdodHRwczovL3NlY3RpZ28uY29tL0NQUzAIBgZngQwBBAIwSgYDVR0fBEMw
+# ZXIgUjM3MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAsv/DbUvcUNlF
+# LQURd9m4+1St5+JudFKo5P803Iks4mFeNB9SymodP6BJJWBuNhOFQj9w77AVAeg5
+# qQpA2dIwp2QTyBHr2h9eWSTkMBVj9mV6+WI5SaW+vDZW7PhJTbysd9v9WB3Xt6ql
+# Ei8m47pcTy8+k/OfhziKiuzNQXqfC7KcoRD/6up8OZBsU0qxr7n5nh/iRfAp1QXF
+# TBQONBZSGIdHAyVRYYX033VoC8v71rizEKCpH97Pxbwcn9eq9K7W8h5v4npsMUoq
+# CS/c8mQwylDQGx15dHYV6NlcVFdjXD11l7qCrIy/unH5OlZtgx58QJRXRbGgQyBd
+# STpEpwuj3i5Qc52Z9m7hd7yCGCXKujf83hUQpOPx1w8+84EbEUTHVAfq4cpORaGW
+# gY8NJy6txmd3wpS1MeXrOaVAMczTgzAZ+yZBWIqdgQBgTxEeXldEToZOrRkxvn1I
+# jIlfr4I4NWJz+Rb52FshLVnkA/wdoad789Eb7XZDNKd4oMmnc636TgauaaVZP2LL
+# oU0JD/fYr53hwBn4uXu5ZsSfpnqAT60S7szJm/Na882xEoyRzLJ+UVbXOlHLO63D
+# KkAtdz1CDuwWxgRE1drnwplepT06dz+1yTr5p1AkUz21bzE6cT/8/kjh4OPzggYY
+# qrOBQPfuKEL5ZJPcN9jRgEpYvRlq5ucCAwEAAaOCAY4wggGKMB8GA1UdIwQYMBaA
+# FDp0pQxnxkJQwv21/Me7KTSC9Hq5MB0GA1UdDgQWBBRhEOl6Eq9RxIXU8s+kdA9Q
+# zSCv+DAOBgNVHQ8BAf8EBAMCBsAwDAYDVR0TAQH/BAIwADAWBgNVHSUBAf8EDDAK
+# BggrBgEFBQcDCDBKBgNVHSAEQzBBMAgGBmeBDAEEAjA1BgwrBgEEAbIxAQIBAwgw
+# JTAjBggrBgEFBQcCARYXaHR0cHM6Ly9zZWN0aWdvLmNvbS9DUFMwSgYDVR0fBEMw
 # QTA/oD2gO4Y5aHR0cDovL2NybC5zZWN0aWdvLmNvbS9TZWN0aWdvUHVibGljVGlt
-# ZVN0YW1waW5nQ0FSMzYuY3JsMHoGCCsGAQUFBwEBBG4wbDBFBggrBgEFBQcwAoY5
+# ZVN0YW1waW5nQ0FSNDEuY3JsMHoGCCsGAQUFBwEBBG4wbDBFBggrBgEFBQcwAoY5
 # aHR0cDovL2NydC5zZWN0aWdvLmNvbS9TZWN0aWdvUHVibGljVGltZVN0YW1waW5n
-# Q0FSMzYuY3J0MCMGCCsGAQUFBzABhhdodHRwOi8vb2NzcC5zZWN0aWdvLmNvbTAN
-# BgkqhkiG9w0BAQwFAAOCAYEAsNwuyfpPNkyKL/bJT9XvGE8fnw7Gv/4SetmOkjK9
-# hPPa7/Nsv5/MHuVus+aXwRFqM5Vu51qfrHTwnVExcP2EHKr7IR+m/Ub7PamaeWfl
-# e5x8D0x/MsysICs00xtSNVxFywCvXx55l6Wg3lXiPCui8N4s51mXS0Ht85fkXo3a
-# uZdo1O4lHzJLYX4RZovlVWD5EfwV6Ve1G9UMslnm6pI0hyR0Zr95QWG0MpNPP0u0
-# 5SHjq/YkPlDee3yYOECNMqnZ+j8onoUtZ0oC8CkbOOk/AOoV4kp/6Ql2gEp3bNC7
-# DOTlaCmH24DjpVgryn8FMklqEoK4Z3IoUgV8R9qQLg1dr6/BjghGnj2XNA8ujta2
-# JyoxpqpvyETZCYIUjIs69YiDjzftt37rQVwIZsfCYv+DU5sh/StFL1x4rgNj2t8G
-# ccUfa/V3iFFW9lfIJWWsvtlC5XOOOQswr1UmVdNWQem4LwrlLgcdO/YAnHqY52Qw
-# nBLiAuUnuBeshWmfEb5oieIYMIIGgjCCBGqgAwIBAgIQNsKwvXwbOuejs902y8l1
-# aDANBgkqhkiG9w0BAQwFADCBiDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBK
-# ZXJzZXkxFDASBgNVBAcTC0plcnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRS
-# VVNUIE5ldHdvcmsxLjAsBgNVBAMTJVVTRVJUcnVzdCBSU0EgQ2VydGlmaWNhdGlv
-# biBBdXRob3JpdHkwHhcNMjEwMzIyMDAwMDAwWhcNMzgwMTE4MjM1OTU5WjBXMQsw
-# CQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMS4wLAYDVQQDEyVT
-# ZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1waW5nIFJvb3QgUjQ2MIICIjANBgkqhkiG
-# 9w0BAQEFAAOCAg8AMIICCgKCAgEAiJ3YuUVnnR3d6LkmgZpUVMB8SQWbzFoVD9mU
-# EES0QUCBdxSZqdTkdizICFNeINCSJS+lV1ipnW5ihkQyC0cRLWXUJzodqpnMRs46
-# npiJPHrfLBOifjfhpdXJ2aHHsPHggGsCi7uE0awqKggE/LkYw3sqaBia67h/3awo
-# qNvGqiFRJ+OTWYmUCO2GAXsePHi+/JUNAax3kpqstbl3vcTdOGhtKShvZIvjwulR
-# H87rbukNyHGWX5tNK/WABKf+Gnoi4cmisS7oSimgHUI0Wn/4elNd40BFdSZ1Ewpu
-# ddZ+Wr7+Dfo0lcHflm/FDDrOJ3rWqauUP8hsokDoI7D/yUVI9DAE/WK3Jl3C4LKw
-# Ipn1mNzMyptRwsXKrop06m7NUNHdlTDEMovXAIDGAvYynPt5lutv8lZeI5w3MOlC
-# ybAZDpK3Dy1MKo+6aEtE9vtiTMzz/o2dYfdP0KWZwZIXbYsTIlg1YIetCpi5s14q
-# iXOpRsKqFKqav9R1R5vj3NgevsAsvxsAnI8Oa5s2oy25qhsoBIGo/zi6GpxFj+mO
-# dh35Xn91y72J4RGOJEoqzEIbW3q0b2iPuWLA911cRxgY5SJYubvjay3nSMbBPPFs
-# yl6mY4/WYucmyS9lo3l7jk27MAe145GWxK4O3m3gEFEIkv7kRmefDR7Oe2T1HxAn
-# ICQvr9sCAwEAAaOCARYwggESMB8GA1UdIwQYMBaAFFN5v1qqK0rPVIDh2JvAnfKy
-# A2bLMB0GA1UdDgQWBBT2d2rdP/0BE/8WoWyCAi/QCj0UJTAOBgNVHQ8BAf8EBAMC
-# AYYwDwYDVR0TAQH/BAUwAwEB/zATBgNVHSUEDDAKBggrBgEFBQcDCDARBgNVHSAE
-# CjAIMAYGBFUdIAAwUAYDVR0fBEkwRzBFoEOgQYY/aHR0cDovL2NybC51c2VydHJ1
-# c3QuY29tL1VTRVJUcnVzdFJTQUNlcnRpZmljYXRpb25BdXRob3JpdHkuY3JsMDUG
-# CCsGAQUFBwEBBCkwJzAlBggrBgEFBQcwAYYZaHR0cDovL29jc3AudXNlcnRydXN0
-# LmNvbTANBgkqhkiG9w0BAQwFAAOCAgEADr5lQe1oRLjlocXUEYfktzsljOt+2sgX
-# ke3Y8UPEooU5y39rAARaAdAxUeiX1ktLJ3+lgxtoLQhn5cFb3GF2SSZRX8ptQ6Iv
-# uD3wz/LNHKpQ5nX8hjsDLRhsyeIiJsms9yAWnvdYOdEMq1W61KE9JlBkB20XBee6
-# JaXx4UBErc+YuoSb1SxVf7nkNtUjPfcxuFtrQdRMRi/fInV/AobE8Gw/8yBMQKKa
-# Ht5eia8ybT8Y/Ffa6HAJyz9gvEOcF1VWXG8OMeM7Vy7Bs6mSIkYeYtddU1ux1dQL
-# bEGur18ut97wgGwDiGinCwKPyFO7ApcmVJOtlw9FVJxw/mL1TbyBns4zOgkaXFnn
-# fzg4qbSvnrwyj1NiurMp4pmAWjR+Pb/SIduPnmFzbSN/G8reZCL4fvGlvPFk4Uab
-# /JVCSmj59+/mB2Gn6G/UYOy8k60mKcmaAZsEVkhOFuoj4we8CYyaR9vd9PGZKSin
-# aZIkvVjbH/3nlLb0a7SBIkiRzfPfS9T+JesylbHa1LtRV9U/7m0q7Ma2CQ/t392i
-# oOssXW7oKLdOmMBl14suVFBmbzrt5V5cQPnwtd3UOTpS9oCG+ZZheiIvPgkDmA8F
-# zPsnfXW5qHELB43ET7HHFHeRPRYrMBKjkb8/IN7Po0d0hQoF4TeMM+zYAJzoKQnV
-# KOLg8pZVPT8wgga+MIIFJqADAgECAhBY1/j+ACGVk7Nfk2EAZ7N7MA0GCSqGSIb3
-# DQEBCwUAMFcxCzAJBgNVBAYTAkdCMRgwFgYDVQQKEw9TZWN0aWdvIExpbWl0ZWQx
-# LjAsBgNVBAMTJVNlY3RpZ28gUHVibGljIENvZGUgU2lnbmluZyBDQSBFViBSMzYw
-# HhcNMjMwODIxMDAwMDAwWhcNMjYwODIwMjM1OTU5WjCBkTEYMBYGA1UEBRMPQ0hF
-# LTEwOS44MDQuMzgyMRMwEQYLKwYBBAGCNzwCAQMTAkNIMR0wGwYDVQQPExRQcml2
-# YXRlIE9yZ2FuaXphdGlvbjELMAkGA1UEBhMCQ0gxEDAOBgNVBAgMB1rDvHJpY2gx
-# EDAOBgNVBAoMB3NjaXAgYWcxEDAOBgNVBAMMB3NjaXAgYWcwggIiMA0GCSqGSIb3
-# DQEBAQUAA4ICDwAwggIKAoICAQCzQ6oCVeUUYjACeXvIhnAvENhDTMoRQ3l5uChh
-# nt76mVcpy3mnMrwexqqLJ9xvoXx4N95BXiloBbpa8OGc/c1O4pasVFP56Xiqf0Ia
-# aUwHqaTWoM2LdpEUo3WjULGcNxxRoQC3Ui4UTtHOVlixHU5uPoxVp5EaMb3iW8yb
-# FGjcoYRd1Tvoe+tl4818KnAWrnqnyoFVc5P1ofh93n8ZIb9kL79c2uz94PiYMVCZ
-# vGQi6vVTytZSLItYpxsP41B8q2qX9acmVKhB4VTweP6J/G2Y8BG8DbLJGuNEuCTK
-# RLj4o7hDEpYI7NKstJyYf3AIAQT9zB4BNLlj37q6YqX9/uZ4dYdydBJl3hix5u3I
-# 7hCbrE3FbZkfi5t8BYK3v/1+Wt9C6+uooUmcLRdos8mYSB4IusKRI4nnupCYC/2b
-# lAUCQSyp5jLsOJexdgalVdKe7Aj8md62lBRGca2ajCCzGEpk5iAMfq43EnKcaoiY
-# 4ajsRniDfKDRgkJ1JUWVCiCwiI/UTuLav2ilQkc3BzPrv3LXQQM68dAeR6Er0Pz4
-# 6iSJ/b3sgIbQonvfPCi3xrSvaxfVueO8IZgZ+oY5M4fYE3peYI1UFDSuvjhmpFln
-# /OlVq6SgaKe2wigOunufR3eDOu+Ltq8Ht6X4Rv5LSrU/BjENRhPsp27fyWADiJpZ
-# 7ru3AQIDAQABo4IByTCCAcUwHwYDVR0jBBgwFoAUgTKSQSsozUbIxKLGKjkS7Eip
-# PxQwHQYDVR0OBBYEFPlPy5ch4ih7wuj28WV5r6p7U6ITMA4GA1UdDwEB/wQEAwIH
-# gDAMBgNVHRMBAf8EAjAAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMEkGA1UdIARCMEAw
-# NQYMKwYBBAGyMQECAQYBMCUwIwYIKwYBBQUHAgEWF2h0dHBzOi8vc2VjdGlnby5j
-# b20vQ1BTMAcGBWeBDAEDMEsGA1UdHwREMEIwQKA+oDyGOmh0dHA6Ly9jcmwuc2Vj
-# dGlnby5jb20vU2VjdGlnb1B1YmxpY0NvZGVTaWduaW5nQ0FFVlIzNi5jcmwwewYI
-# KwYBBQUHAQEEbzBtMEYGCCsGAQUFBzAChjpodHRwOi8vY3J0LnNlY3RpZ28uY29t
-# L1NlY3RpZ29QdWJsaWNDb2RlU2lnbmluZ0NBRVZSMzYuY3J0MCMGCCsGAQUFBzAB
-# hhdodHRwOi8vb2NzcC5zZWN0aWdvLmNvbTA7BgNVHREENDAyoCIGCCsGAQUFBwgD
-# oBYwFAwSQ0gtQ0hFLTEwOS44MDQuMzgygQxtaXNjQHNjaXAuY2gwDQYJKoZIhvcN
-# AQELBQADggGBAIPzM0vd+ZHVmIl+VseC1DVUkkukcEW7UG+bopOaTw/nqr6dMzqg
-# lpCMTnDuYK3zSl3ptTlWCnok1EGjFNssPfr8uoFsgooblOZpEgolbc45pNvT0ERS
-# P/85MOvTJqVH1kfJhWDAKG9BxJkhkhlc9bE98MgvrlEJ/q/wx+lXH739Zeerwvs2
-# Y/MMUeSqZPmTuc2YkhiLTpmpIT9KXcvjYaFQB2mKHRerQTpmLGgu2tzo7yoJJrBc
-# Gp2trQH+68dWTiywsME7glrrSKkJTB+87UmiSTdETx2H2pGOh65He3/NQe/+vcI2
-# SBB0CXStw2AhhReemj/w6INi2FYkhO1Sag9inF/1K62w//gZsSR/YB8dlG0+MAsN
-# aPJaCXnciPP5fG2XIZsQcaKd8dT9Y+wtBEigoNX0Js0NmMWwvygL33pGwjzIc9td
-# 3k7KkO3gJeO9VI5oqp7RPIAew0HTB5PyWS1C0BXNVMLoONdinpBGTXp0P8DH2YYs
-# HBQqPgmIgUeVNzGCBjIwggYuAgEBMGswVzELMAkGA1UEBhMCR0IxGDAWBgNVBAoT
-# D1NlY3RpZ28gTGltaXRlZDEuMCwGA1UEAxMlU2VjdGlnbyBQdWJsaWMgQ29kZSBT
-# aWduaW5nIENBIEVWIFIzNgIQWNf4/gAhlZOzX5NhAGezezAJBgUrDgMCGgUAoHgw
-# GAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGC
-# NwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQx
-# FgQU5qJdQXYsKu4kjxVYabM+DYFZHOYwDQYJKoZIhvcNAQEBBQAEggIAiVd8y7ub
-# 9xaENtUotLiuqvmpulOfftyYKNO0fbQTbIevIBzM62yi/R/gdFC7S67jQtTc/wCy
-# sAXFSHKzwnjbE/110XeXzw/kMPMDBoT8VbkgjRlQQZcNSd5scBWXTYVEeGUfj3ei
-# QSVtzJUP0e2NJriUe91sGT2piJufMCpKRfmiyKx5dSn3+KsHLSZzBKyWI8DZDe9a
-# njl2sJcWkPrzc6NHR/yEBDJ+LVFcA2iMvDF0dWnGqr0cKtA3eglbQfFk5WimzEBF
-# ULmhf3IOrs3ti7XGyago6zVeISPGiDEdshy/cc8F9LrIFtWazDOetxZlBaYKGVXQ
-# L/GXwM6Iv/w7HPgfN46j092YSfSipIvAR4i2pZzTBRWNz3GD7m0RNpvBp3IMQuDW
-# g7fNjyPS7PgDOoEVPBiFEPceZgnsB1UeLz21DOOxPV7gxBvXnOuzIVJxoTq5jdKJ
-# x/cbhWyk411m+DT9ynUAEMUh1NMdFD0exGcf1Carqr+uGKdVta7qvfD4K/KfdKpK
-# Lrf2bNqz6Fmrx9vnuWirb8WjedMWhrJTyAjwQKgK0rtwuyqy35r0Ml1CCpOzPuoB
-# KsyFnPnYW0Jb13GmYPv2N4SY83wlEgNOA4a7yZdVotUuq790LMiKy2UA17Lw+Ize
-# p641QaoUqse0nDwLRZhuIh3GUZ89QPSPl/ehggMiMIIDHgYJKoZIhvcNAQkGMYID
-# DzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1p
-# dGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1waW5nIENBIFIz
-# NgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgGCSqGSIb3DQEJ
-# AzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIyMzEwMjk0MlowPwYJ
-# KoZIhvcNAQkEMTIEMKzaZMFVhAHZHBUXFvwU2Ci1MWJ2p+8AAEAW7cL4R9FaU3m+
-# BLSSow5qjSJPq0pc1zANBgkqhkiG9w0BAQEFAASCAgAIMd+8F7SQA100hz01ycOY
-# S7gg3E3+h/LckrKT57xsri8hGiUQxJJmnvErCrQ0yjJHOsKNoPXwI53pA8v96Txu
-# aFesYEwYQ5ApsvX6qYQ5LICh9L/Hw70nCcWO888MtoRDz9wKxDWsPj0AxlZxaaCh
-# 83iklAgeGeu9hKBAHoWfrQsuTkK/0lLIpqYwMsYlptyG+fw6dXGBGBDyWCFqH0c6
-# 6b4AE9k4HYpT/o3liLilepWDplBpnPN8NCuOGkftuXpahoT6MzX70rGty1smGEly
-# PwZFrTAe5yVxt+Io1hf5PCAt07Aj/DzRD32LBlNs0kkssZItlJFaI7JjGg+jcyUC
-# dIW6gVHQjYGjzciDBlDWE/8MduIAl6Mi5PBEaf2IPpRgbJ1mt6ts7rc9dRmdFYGw
-# HmvvwWZpjHAIR0pEVfCs9Ledwxxt46yu4bx3UcZAEpWsrtvEYfOzCtSX69YwLFM/
-# qKPiIPPJB53NcaZrAgvs/PHy6tkHbt1oiiNmXzbR2gPn/VMv+Tg3tKgcxxYKggmQ
-# 3HInXNU6XL7ouxutjznajEi6xFzodaQ2wmpLMI+jAVOTkE0hsckYuq9E/mq/F5Qp
-# I/DnwCAdW+MkLMvdITXkjpFpawuRygO2n6orqAwGobtTlTBmbif8UiJ+uFA2JRv9
-# ykqL+4V49LI4hAg7ldsV/g==
+# Q0FSNDEuY3J0MCMGCCsGAQUFBzABhhdodHRwOi8vb2NzcC5zZWN0aWdvLmNvbTAN
+# BgkqhkiG9w0BAQwFAAOCAgEAA+o9jdGszfoZepOmygef1OlbkjrPd2QW9z3M8vVb
+# QSCruPeO2eRsC9GhZ4CMZfhkrixayYD67gQkbyiRCbJu5L/i0NQjlQhBvbWfiEba
+# +KHFKGud5YHRWhDZUtDeMIJGZG0BD7/sftZUo2Ifk+CXi/ZlM50+xK3OkqeXVi5G
+# ubDD/5txmYuqCT3T3LAilmoB+5th9sQxiMhyQuT3R/aYb4vypoZJLYklUzTalXle
+# W1nV9s4UROlE389CHDKAi/fepRSMnV8TghODDQxwzNGrOJZ04k/yhzHHDupfHPU5
+# 1FYJqXIvWq9SAAWdlNV1JGIxhkp/TAtxBwz/Vd/VbgVb2d9/wRFfxFkka39O0+4x
+# aZSl/oEK/1DqjxjJRO2Se9lGlJDScu21Zd23Cys3aYyB8y5H/+DFWtVe8PMKgr+V
+# uIDp0Rk5bneVDAEW0TPAT8Ufwl2F6DJiDg/KZk5NmsYES+CxvF7bnISEnQh0ZrWn
+# AJixquV0mElUx01wA5TuPIgyodxzNq/fC0hen9LBtdnfFfSZ+wt8A1Injsbio+DH
+# Vq1voYiVNpBfO7+nh9NB4AhRXNldPgr3zgjJ+47s0uNYy2iDXAZSlkP3ym/7gy31
+# jlu989SNpRWO14/LUNV2LSuXkRI1iLTPI6ZdXG0DnPPG7UftF0tk5m6BP9eNfr2t
+# j1sxggYzMIIGLwIBATBrMFcxCzAJBgNVBAYTAkdCMRgwFgYDVQQKEw9TZWN0aWdv
+# IExpbWl0ZWQxLjAsBgNVBAMTJVNlY3RpZ28gUHVibGljIENvZGUgU2lnbmluZyBD
+# QSBFViBSMzYCEFjX+P4AIZWTs1+TYQBns3swCQYFKw4DAhoFAKB4MBgGCisGAQQB
+# gjcCAQwxCjAIoAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYK
+# KwYBBAGCNwIBCzEOMAwGCisGAQQBgjcCARUwIwYJKoZIhvcNAQkEMRYEFFbIwGdv
+# Qie3soV4AklafkEc0YTQMA0GCSqGSIb3DQEBAQUABIICAKRxPpWSKHINZAGFqcZY
+# hVxm8aOD8Q4XkeW7HtGpVvULm2m7NDW+3ECb/8OoL7W8GMmguYYwu6YZH93NGghk
+# +nNDosXjaKkvd9GMA/pTZajd5BCoHFyzd/+d6QmxEPpeEPcFZHIVx/xil/UfC16L
+# rVnTGbnTpwMZZLdS8N6RuMccrx6xWO9Rl4Z3WvdzNUwsYCQOWdXI89wpSd9p4ky5
+# 1ZQzBjvBffye/QPnV9v33CujUTCcMuukF+DbysWKQTXJneRYj5HdHLux1yTy3v/8
+# oclfh5WqNSSxYepxAKkPFJg0SQCmyPMuTGZ5IQSXLyV5fZXRhsHbM6ndSKHLiX+K
+# rA/h/DPoRoATZotwMiGQwHZPVYh+9vmsYO1SCI4COrQch78d0U0jUiV/pHw6TsD7
+# 3+ZVTaKfc7UVErNC8Kf5CJ+6J+/3QGSDdnCR9SkCJ9hgCNAL4H3qsjh68KE0wkjF
+# pgW2Mskzz0tcRY+mUEaEHlhAAKqmEvmhhcW0LtEUjyN+1Bl9E9XKvP8AptwfqPOF
+# YaJ13MZaFFwWsolUrQYuOEbC40ppguSwMMMy0hDwJx9aNA7myf+sBn3DCIqdA34a
+# y/AG7OPsoYVqix6QGfqxUqZJUeaedVE+Okt/T9ZANXtUWKYhjAF+mTSNVPeY/KmA
+# 2++8kmjXyuD8hVTMuzPbw6tLoYIDIzCCAx8GCSqGSIb3DQEJBjGCAxAwggMMAgEB
+# MGowVTELMAkGA1UEBhMCR0IxGDAWBgNVBAoTD1NlY3RpZ28gTGltaXRlZDEsMCoG
+# A1UEAxMjU2VjdGlnbyBQdWJsaWMgVGltZSBTdGFtcGluZyBDQSBSNDECEQDnTvJV
+# sFBP+tum3/f8i6MVMA0GCWCGSAFlAwQCAgUAoHkwGAYJKoZIhvcNAQkDMQsGCSqG
+# SIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYwNzIxMDUwNDMwWjA/BgkqhkiG9w0B
+# CQQxMgQwwcl6hBFtbOTMof65N0wB0ji0yX7+eURwPbTE4RXI2huIi8TQt7bGqgeM
+# yLw0JI96MA0GCSqGSIb3DQEBAQUABIICACF2jdbkJtF1hQz1B1450/xulOXKvs2p
+# x2zoHKCTwC82G8bsbGWzaK0LBdJTPrqUW4bAWkDEmF9jCFKC2iCHtd3uOxUAy7+d
+# 2CKdtM/02x3RN0+D0RnpRnBmvvG2Hq9xVOpzwRNeUgLmKaRAT3vBSjpPsn5wHQug
+# NCSRkSK62eX2NO2+Gg0NSkSPe5WBjCtuTnwuqetdkWHiunUf9G4yrY/SHASTELqQ
+# 3EIlvo/7pHQ2RLyBSghndJLEWHmpdVnvt+pZr5ZM/DlOk79qa524czQOZ5ApLZwD
+# wDl0sV9qtYrqP/owE0JO7TxCSFhRpU8Dw7xWcbmMroW9ryq5SVdL4BVzWGQ4AhKV
+# hfTYzxO5R4sG9GA+TGxq3kAggKFeCWktSCi0VMpo5S8URFYNPE03t37lM1yTFmWs
+# mc6XpsOJkdFYxhcLijsGK/ez1I+R6mNxvBIhXPPN6vRZF7O6sUIkMljrXbtHanpZ
+# tkcYuph0lCage60OJuVuMeEpI9p8EJ1eflSxor6OA/UK9HlU3nLR10X+dCZCEev2
+# PXoTIj8VvxY1ymKs3QsBtrvD89aj1AR/qxJqUO1fMx+9cqIQZ10VfhK/eBVJJlso
+# WiFTydOAD/OkGyMFJDocLt3itxBaFnTfWKtZd6/p/KbDUk5Zdr9uTu5vkTmaOAUy
+# ZOioeDe/A3D2
 # SIG # End signature block
