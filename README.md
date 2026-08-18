@@ -106,6 +106,8 @@ The _Filter_ parameter can be used to filter the hardening list. For this purpos
 Invoke-HardeningKitty -Mode Audit -Log -Report
 ```
 
+To turn the resulting CSV report into a browsable HTML report, see [HTML Audit Report](#html-audit-report) below.
+
 HardeningKitty can be executed with a specific list defined by the parameter _FileFindingList_. If HardeningKitty is run several times on the same system, it may be useful to hide the machine information. The parameter _SkipMachineInformation_ is used for this purpose.
 
 ```powershell
@@ -233,6 +235,22 @@ The formula for the HardeningKitty Score is _(Points achieved / Maximum points) 
 ## KittyPorter - Make Hardening Kitty Reports Great Again
 
 [Yair](https://github.com/Y8765) took care of presenting HardeningKitty results for sysadmins and even management in the form of a beautiful Excel spreadsheet containing Security Assessment Dashboards and a Dashboard with Dynamic Updates based on the status of findings, as well as an HTML Report Overview. He publishes his work in the [KittyPorter](https://github.com/Y8765/KittyPorter) repo.
+
+## HTML Audit Report
+
+This fork adds `Export-HardeningKittyHtmlReport.ps1`, a standalone script that converts the CSV produced by `-Mode Audit -Report` into a single self-contained HTML file - no internet access or external dependencies required to view it. The report includes a highlights panel (HardeningKitty score, total/passed/low/medium/high counts), a per-category breakdown, and a searchable, sortable table of every finding.
+
+It only reads the CSV report; it does not call `Invoke-HardeningKitty` or touch `HardeningKitty.psm1`.
+
+```powershell
+# 1. Run an audit as usual and produce the CSV report
+Invoke-HardeningKitty -Mode Audit -Log -Report
+
+# 2. Convert that CSV into an HTML report
+.\Export-HardeningKittyHtmlReport.ps1 -ReportFile .\hardeningkitty_report_<hostname>_<listname>-<date>.csv
+```
+
+By default the HTML file is written next to the CSV with the same name. Use `-OutputFile` to choose a different path, and `-Title` to set the heading shown at the top of the report.
 
 ## Last Update
 
